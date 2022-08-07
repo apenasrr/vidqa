@@ -169,7 +169,7 @@ def make_reencode(
 
         if dict_video_data is False:
             print("")
-            logging.info("There are no videos to reencode")
+            logging.info("There are no videos to convert")
             need_reencode = False
             continue
 

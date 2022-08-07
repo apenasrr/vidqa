@@ -3,6 +3,7 @@ include CONTRIBUTING.rst
 include HISTORY.rst
 include LICENSE
 include README.rst
+include vidqa\config.ini
 
 recursive-include tests *
 recursive-exclude * __pycache__
