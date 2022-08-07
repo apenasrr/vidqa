@@ -4,10 +4,10 @@
 
 
 import unittest
+
 from click.testing import CliRunner
 
-from vidqa import vidqa
-from vidqa import cli
+from vidqa import cli, vidqa
 
 
 class TestVidqa(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestVidqa(unittest.TestCase):
         runner = CliRunner()
         result = runner.invoke(cli.main)
         assert result.exit_code == 0
-        assert 'vidqa.cli.main' in result.output
-        help_result = runner.invoke(cli.main, ['--help'])
+        assert "vidqa.cli.main" in result.output
+        help_result = runner.invoke(cli.main, ["--help"])
         assert help_result.exit_code == 0
-        assert '--help  Show this message and exit.' in help_result.output
+        assert "--help  Show this message and exit." in help_result.output

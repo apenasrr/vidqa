@@ -1,0 +1,5 @@
+pandas
+black
+Click
+sphinx_click
+sphinx_copybutton
