@@ -153,7 +153,9 @@ def vidqa(
         return []
 
     list_path_video = get_list_path_video(path_dir, video_extensions)
-
+    if len(list_path_video) == 0:
+        logging.info("There are no video files.")
+        return
     list_dict_report_video_metadata = (
         video_report.get_list_dict_report_video_metadata(list_path_video)
     )

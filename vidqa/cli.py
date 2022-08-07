@@ -10,7 +10,7 @@ from . import config, vidqa
 def one_time(input: str, video_extensions: tuple):
 
     report = os.path.basename(input) + ".csv"
-    vidqa.vidqa(input, report, video_extensions=video_extensions)
+    vidqa(input, report, video_extensions=video_extensions)
 
 
 def batch_mode(input: str, video_extensions: tuple):
@@ -19,7 +19,7 @@ def batch_mode(input: str, video_extensions: tuple):
     for dir_name in list_dir_name:
         path_dir = os.path.join(input, dir_name)
         report = os.path.basename(path_dir) + ".csv"
-        vidqa.vidqa(path_dir, report, video_extensions=video_extensions)
+        vidqa(path_dir, report, video_extensions=video_extensions)
 
 
 @click.command()
