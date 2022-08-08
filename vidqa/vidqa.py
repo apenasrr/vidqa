@@ -14,7 +14,11 @@ def logging_config():
 
     logfilename = "log-" + "vidqa" + ".txt"
     logging.basicConfig(
-        filename=logfilename,
+        handlers=[
+            logging.FileHandler(
+                filename=logfilename, encoding="utf-8", mode="a+"
+            )
+        ],
         level=logging.INFO,
         format=" %(asctime)s-%(levelname)s-%(message)s",
     )
@@ -142,7 +146,7 @@ def vidqa(
     (
         list_folders_path_approved,
         list_folders_path_rejected,
-    ) = test_folders_has_path_too_long([path_dir], max_path=260, max_name=100)
+    ) = test_folders_has_path_too_long([path_dir], max_path=260, max_name=150)
 
     if len(list_folders_path_rejected) > 0:
         input("\nAfter correcting, press something to continue.\n")
