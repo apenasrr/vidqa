@@ -4,16 +4,30 @@ import sys
 
 import click
 
-from . import config, vidqa
+from . import config, sanitize_files, vidqa
 
 
 def one_time(input: str, video_extensions: tuple):
+    """Analyze the videos of a folder
+
+    Args:
+        input (str): input path folder
+        video_extensions (tuple): video extensions to be analyzed
+    """
 
     report = os.path.basename(input) + ".csv"
     vidqa(input, report, video_extensions=video_extensions)
 
 
 def batch_mode(input: str, video_extensions: tuple):
+    """Analyzes all internal folders as different projects, analyzing your videos
+
+    Args:
+        input (str): input path folder
+        video_extensions (tuple): video extensions to be analyzed
+    """
+
+    sanitize_files(input)
 
     list_dir_name = os.listdir(input)
     for dir_name in list_dir_name:

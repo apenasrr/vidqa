@@ -116,6 +116,25 @@ def replace_converted_video_all(report_path: str):
         replace_converted_video(path_origin, path_converted)
 
 
+def sanitize_files(folder_path: str):
+    """Ensures that the path of files are reasonable
+
+    Args:
+        path_dir (str): folder path
+    """
+
+    logging.info("Star folder analysis: %s", folder_path)
+    while True:
+        (_, list_folders_path_rejected,) = test_folders_has_path_too_long(
+            [folder_path], max_path=260, max_name=150
+        )
+
+        if len(list_folders_path_rejected) > 0:
+            input("\nAfter correcting, press something to continue.\n")
+        else:
+            return
+
+
 def vidqa(
     path_dir: str,
     report_path: str = None,

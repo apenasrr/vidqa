@@ -15,7 +15,11 @@ def get_video_codec(stream_video: dict) -> str:
 
 def get_video_profile(stream_video: dict) -> str:
 
-    video_profile = stream_video["profile"]
+    try:
+        video_profile = stream_video["profile"]
+    except Exception as e:
+        logging.info("Not have video_profile: %s", e)
+        video_profile = ""
     return video_profile
 
 

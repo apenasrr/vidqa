@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 
 def test_folders_has_path_too_long(
@@ -50,9 +51,9 @@ def test_folder_has_filepath_too_long(path_folder, max_path=260, max_name=260):
 
     for root, _, files in os.walk(path_folder):
         for file in files:
-            if len(file) > max_name:
-                list_file_name_long.append(file)
             file_path = os.path.join(root, file)
+            if len(file) > max_name:
+                list_file_name_long.append(file_path)
             len_file_path = len(file_path)
             if len_file_path > max_path:
                 list_file_path_long.append(file_path)
@@ -65,16 +66,38 @@ def test_folder_has_filepath_too_long(path_folder, max_path=260, max_name=260):
     return return_dict
 
 
+def open_folder_in_explorer(list_file_path: list):
+    """Opens folder where the first file is located.
+    Valid only for Windows operating system.
+
+    Args:
+        list_stringa (list): list of file path
+    """
+
+    if len(list_file_path) > 0 and sys.platform == "win32":
+        first_file_path = list_file_path[0]
+        folder_path = os.path.dirname(first_file_path)
+        print(f'start "{folder_path}"')
+        os.startfile(folder_path)
+    else:
+        pass
+
+
 def show_alert_filepath_too_long(dict_result_test_filepath_too_long: dict):
 
     return_ = dict_result_test_filepath_too_long
     if return_["result"] is False:
+        # Open folders that need adjustments
+        open_folder_in_explorer(return_["list_file_path_long"])
+        open_folder_in_explorer(return_["list_file_name_long"])
+
         logging.info("File path too long:")
         for path_file_long in return_["list_file_path_long"]:
             logging.info("- %s", path_file_long)
         print("")
         logging.info("File name too long:")
         for path_file_long in return_["list_file_name_long"]:
-            logging.info("- %s", path_file_long)
+            file_name_long = os.path.basename(path_file_long)
+            logging.info("- %s", file_name_long)
 
     print("")
