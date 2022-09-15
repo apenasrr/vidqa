@@ -12,8 +12,9 @@ from . import config, sanitize_files, vidqa
 def one_time(folder_path: Path, video_extensions: tuple):
     """Analyze the videos of a folder. Unique log file.
     Ensure that:
-     - H264/AAC codec standard for all videos
-     - All file paths have up to 260 characters
+    - H264/AAC codec standard for all videos
+    - All file paths have up to 260 characters
+
     Args:
         folder_input (str): input path folder
         video_extensions (tuple): video extensions to be analyzed
@@ -29,8 +30,9 @@ def one_time(folder_path: Path, video_extensions: tuple):
 def batch_mode(folder_path: Path, video_extensions: tuple):
     """Analyze the videos of each internal folders. Multiple log files.
     Ensure that:
-     - H264/AAC codec standard for all videos
-     - All file paths have up to 260 characters
+    - H264/AAC codec standard for all videos
+    - All file paths have up to 260 characters
+
     Args:
         folder_path (Path): input path folder
         video_extensions (tuple): video extensions to be analyzed

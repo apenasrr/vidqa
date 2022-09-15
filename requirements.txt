@@ -1,4 +1,6 @@
 pandas
+natsort
+Unidecode
 black
 Click
 sphinx_click

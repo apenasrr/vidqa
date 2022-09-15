@@ -12,6 +12,8 @@ with open("HISTORY.rst") as history_file:
 
 requirements = [
     "Click>=7.0",
+    "natsort>=8.2.0",
+    "Unidecode>=1.3.4",
 ]
 
 test_requirements = []
@@ -46,6 +48,6 @@ setup(
     test_suite="tests",
     tests_require=test_requirements,
     url="https://github.com/apenasrr/vidqa",
-    version="0.1.4",
+    version="0.1.5",
     zip_safe=False,
 )
