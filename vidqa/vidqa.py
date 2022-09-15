@@ -1,13 +1,15 @@
 """Main module."""
 
 import logging
-import os
-import shutil
+from pathlib import Path
 
 import pandas as pd
 
+from vidqa import utils
+
 from . import config, make_reencode, video_report
 from .check_path import test_folders_has_path_too_long
+from .utils import get_all_file_path
 
 
 def logging_config():
@@ -32,7 +34,7 @@ def logging_config():
     logging.getLogger("").addHandler(console)
 
 
-def get_list_path_video(path_dir: str, video_extensions: tuple) -> list:
+def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
 
     # To input more file video extension:
     #  https://dotwhat.net/type/video-movie-files
@@ -45,54 +47,85 @@ def get_list_path_video(path_dir: str, video_extensions: tuple) -> list:
     logging.info(
         "Find for video with extension: %s", str_tuple_video_extension
     )
+
+    # get_all_file_path
+    dict_all_file_result = utils.get_all_file_path(folder_path)
+
+    # In case of error by max_path, interrupts execution
+    if len(dict_all_file_result["errors"]) != 0:
+        list_file_path_too_long = [
+            str(x) for x in dict_all_file_result["errors"]
+        ]
+        for file_path_too_long in list_file_path_too_long:
+            logging.error(f"File path too long: %s", file_path_too_long)
+        raise ValueError("file_path_too_long")
+
+    # Select desired videos by extension
     list_file_selected = []
-    for root, _, files in os.walk(path_dir):
-        for file in files:
-            file_lower = file.lower()
-            if file_lower.endswith(tuple_video_extension):
-                logging.info("Selected file: %s", file)
-                path_file = os.path.join(root, file)
-                list_file_selected.append(path_file)
-            else:
-                logging.info("Unselected file: %s", file)
+    list_file_path = dict_all_file_result["content"].copy()
+    for file_path in list_file_path:
+        if file_path.name.lower().endswith(tuple_video_extension):
+            logging.info("Selected file: %s", file_path.name)
+            list_file_selected.append(file_path)
+        else:
+            logging.info("___Unselected: %s", file_path.name)
+
     return list_file_selected
 
 
-def get_file_path_converted(path_origin):
+def get_file_path_converted(path_origin: Path) -> Path:
+    """ "Converts the absolute path of a video file, to its MP4 equivalent"
 
-    name_origin = os.path.basename(path_origin)
-    folder_origin = os.path.dirname(path_origin)
-    name_wo_ext = os.path.splitext(name_origin)[0]
-    name_converted = name_wo_ext + ".mp4"
-    file_path_converted = os.path.join(folder_origin, name_converted)
-    return file_path_converted
+    Args:
+        path_origin (Path): video path
+
+    Returns:
+        Path: video path in mp4
+    """
+
+    file_path_c = path_origin.parent / (path_origin.stem + ".mp4")
+    return file_path_c
 
 
-def replace_converted_video(path_origin: str, path_converted: str) -> None:
+def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
+    """Replaces original video with converted video
+
+    Args:
+        path_origin (Path): path origin video
+        path_converted (Path): path converted video
+
+    Raises:
+        FileNotFoundError: path file video not found
+        PermissionError: It was not possible to replace the file
+    """
+
+    # check existence of video converted
+    if not path_origin.exists():
+        raise FileNotFoundError(f"path_file_origin not found: {path_origin}")
+    if not path_converted.exists():
+        raise FileNotFoundError(
+            f"path_file_converted not found: {path_converted}"
+        )
 
     file_path_converted_destination = get_file_path_converted(path_origin)
 
-    # confer existence of video converted
-    if not os.path.exists(path_converted):
-        raise ValueError("path_file_converted not found: %s", path_converted)
-
     # remove path_origin
-    os.remove(path_origin)
+    path_origin.unlink()
 
-    # mover path_converted para file_path_converted_destination
+    # move path_converted to file_path_converted_destination
     try:
-        shutil.move(path_converted, file_path_converted_destination)
+        path_converted.rename(file_path_converted_destination)
     except Exception as e:
         logging.error(e)
-        logging.error("move fail: %s", path_converted)
-        raise ValueError(f"move fail: {path_converted}")
+        logging.error("move fail: %s", str(path_converted))
+        raise PermissionError(f"move fail: {str(path_converted)}")
 
 
-def replace_converted_video_all(report_path: str):
+def replace_converted_video_all(report_path: Path):
 
     while True:
         try:
-            df = pd.read_csv(report_path)
+            df = pd.read_csv(str(report_path))
             break
         except Exception as e:
             logging.error(e)
@@ -113,20 +146,19 @@ def replace_converted_video_all(report_path: str):
     for _, row in df_to_move.iterrows():
         path_origin = row["path_file"]
         path_converted = row["path_file_converted"]
-        replace_converted_video(path_origin, path_converted)
+        replace_converted_video(Path(path_origin), Path(path_converted))
 
 
-def sanitize_files(folder_path: str):
+def sanitize_files(folder_path: Path):
     """Ensures that the path of files are reasonable
 
     Args:
-        path_dir (str): folder path
+        folder_path (Path): folder path
     """
-
-    logging.info("Star folder analysis: %s", folder_path)
+    logging.info("Star folder analysis: %s", str(folder_path))
     while True:
         (_, list_folders_path_rejected,) = test_folders_has_path_too_long(
-            [folder_path], max_path=260, max_name=150
+            [folder_path], max_path=250, max_name=150
         )
 
         if len(list_folders_path_rejected) > 0:
@@ -136,9 +168,9 @@ def sanitize_files(folder_path: str):
 
 
 def vidqa(
-    path_dir: str,
-    report_path: str = None,
-    path_folder_convert: str = "temp",
+    folder_path: Path,
+    report_path: Path = None,
+    path_folder_convert: Path = Path("temp"),
     video_extensions: tuple = None,
 ):
     """Warning if file path or file name is greater than they should.
@@ -151,31 +183,31 @@ def vidqa(
         path_folder_convert (str): temp folder to receive converted videos
     """
 
-    config_file = os.path.join(
-        os.path.dirname(os.path.abspath(os.path.abspath(__file__))),
-        "config.ini",
-    )
+    config_file = Path(__file__).absolute().parent / "config.ini"
+
     config_data = config.get_data(config_file)
     if video_extensions is None:
         video_extensions = config_data["video_extensions"].split(",")
     if report_path is None:
-        report_path = os.path.basename(path_dir) + ".csv"
+        report_path = Path(folder_path.name + ".csv")
 
-    logging.info("Star folder analysis: %s", path_dir)
+    logging.info("Star folder analysis: %s", folder_path)
     (
         list_folders_path_approved,
         list_folders_path_rejected,
-    ) = test_folders_has_path_too_long([path_dir], max_path=260, max_name=150)
+    ) = test_folders_has_path_too_long(
+        [folder_path], max_path=260, max_name=150
+    )
 
     if len(list_folders_path_rejected) > 0:
         input("\nAfter correcting, press something to continue.\n")
 
     if len(list_folders_path_approved) > 0:
-        path_dir = list_folders_path_approved[0]
+        folder_path = list_folders_path_approved[0]
     else:
         return []
 
-    list_path_video = get_list_path_video(path_dir, video_extensions)
+    list_path_video = get_list_path_video(folder_path, video_extensions)
     if len(list_path_video) == 0:
         logging.info("There are no video files.")
         return
@@ -193,8 +225,8 @@ def vidqa(
 
     df_video_metadata.to_csv(report_path, index=False)
 
-    if not os.path.exists(path_folder_convert):
-        os.mkdir(path_folder_convert)
+    if not path_folder_convert.exists():
+        path_folder_convert.mkdir()
     make_reencode.make_reencode(report_path, path_folder_convert)
     replace_converted_video_all(report_path)
 
@@ -203,10 +235,10 @@ def main():
 
     config_data = config.get_data("config.ini")
     video_extensions = config_data["video_extensions"].split(",")
-    report_path = "report_metadata.csv"
-    path_dir = ""
+    report_path = Path("report_metadata.csv")
+    folder_path = ""
 
-    vidqa(path_dir, report_path, video_extensions=video_extensions)
+    vidqa(folder_path, report_path, video_extensions=video_extensions)
 
 
 logging_config()

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
-import os
 from datetime import timedelta
+from pathlib import Path
 
 import pandas as pd
 
@@ -55,15 +57,8 @@ def get_video_bitrate(dict_inf: dict, stream_video: dict) -> int:
         try:
             video_bitrate = dict_inf["format"]["bit_rate"]
         except Exception as e:
-            logging.error(dict_inf)
-            logging.error(e)
-            file = dict_inf["format"]["filename"]
-            msg_err = (
-                "File bellow don't have 'bit_rate' in "
-                + f"detail file:\n{file}"
-            )
-            logging.error(msg_err)
-            raise NameError(msg_err)
+
+            video_bitrate = 0
 
     return int(video_bitrate)
 
@@ -85,31 +80,6 @@ def get_audio_codec(stream_audio: dict) -> str:
 
     audio_codec = stream_audio["codec_name"]
     return audio_codec
-
-
-def get_list_path_video(path_dir: str, video_extensions: list) -> list:
-
-    # To input more file video extension:
-    #  https://dotwhat.net/type/video-movie-files
-
-    tuple_video_extension_raw = tuple(video_extensions)
-    tuple_video_extension = tuple(
-        "." + ext for ext in tuple_video_extension_raw
-    )
-    str_tuple_video_extension = ", ".join(tuple_video_extension)
-    logging.info(f"Find for video with extension: {str_tuple_video_extension}")
-    list_file_selected = []
-    for root, _, files in os.walk(path_dir):
-
-        for file in files:
-            file_lower = file.lower()
-            if file_lower.endswith(tuple_video_extension):
-                logging.info("Selected file: %s", file)
-                path_file = os.path.join(root, file)
-                list_file_selected.append(path_file)
-            else:
-                logging.info("Unselected file: %s", file)
-    return list_file_selected
 
 
 def timedelta_to_string(timestamp) -> str:
@@ -171,7 +141,7 @@ def get_duration_ffprobe(dict_inf: dict) -> dict:
     return d
 
 
-def get_list_dict_report_video_metadata(list_path_file: list):
+def get_list_dict_report_video_metadata(list_path_file: list[Path]):
     """Generates video metadata report in list of dict
 
     Args:
@@ -210,11 +180,37 @@ def get_list_dict_inf_ffprobe(list_path_file: list):
     return list_dict
 
 
-def format_video_metadata(list_dict_inf_ffprobe):
+def get_total_bitrate(dict_inf: dict) -> int:
+    """Total Bitrate search.
+
+    Args:
+        dict_inf (dict): video metadata
+
+    Returns:
+        int: video bitrate
+    """
+
+    try:
+        total_bitrate = int(dict_inf["format"]["bit_rate"])
+    except Exception as e:
+        total_bitrate = 0
+        logging.error(dict_inf)
+        logging.error(e)
+        file = dict_inf["format"]["filename"]
+        msg_err = (
+            "File bellow don't have 'total_bitrate' in "
+            + f"detail file:\n{file}"
+        )
+        logging.error(msg_err)
+
+    return total_bitrate
+
+
+def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
     """Generates video metadata report in list of dict
 
     Args:
-        list_dict_inf_ffprobe (list[dict]):
+        list_dict_inf_ffprobe (list[dict[str, str]]):
             List of Dictionaries returned from FFProbe Metadata Analysis
 
     Returns:
@@ -235,7 +231,7 @@ def format_video_metadata(list_dict_inf_ffprobe):
             continue
         duration = duration_dict["duration_str"]
         duration_seconds = duration_dict["duration_seconds"]
-        total_bitrate = int(dict_inf_ffprobe["format"]["bit_rate"])
+        total_bitrate = get_total_bitrate(dict_inf_ffprobe)
         format_name = dict_inf_ffprobe["format"]["format_name"]
 
         is_video = False
@@ -283,7 +279,7 @@ def format_video_metadata(list_dict_inf_ffprobe):
         d = {}
         d["duration"] = duration
         d["duration_seconds"] = duration_seconds
-        d["file_size"] = os.path.getsize(path_file)
+        d["file_size"] = Path(path_file).stat().st_size
         d["format_name"] = format_name
         d["total_bitrate"] = total_bitrate
         d["video_bitrate"] = video_bitrate
@@ -294,8 +290,8 @@ def format_video_metadata(list_dict_inf_ffprobe):
         d["video_resolution_height"] = video_resolution_height
         d["video_resolution_width"] = video_resolution_width
         d["path_file"] = path_file
-        d["file_path_folder"] = os.path.dirname(path_file)
-        d["file_name"] = os.path.split(path_file)[1]
+        d["file_path_folder"] = str(Path(path_file).parent)
+        d["file_name"] = Path(path_file).name
         list_dict.append(d)
 
     return list_dict
@@ -317,8 +313,9 @@ def include_video_to_convert(df: pd.DataFrame) -> pd.DataFrame:
     mask_ca_ok = df["audio_codec"].isin(["aac"])
     mask_isavc = df["is_avc"].isin([1])
     mask_mp4 = df["path_file"].apply(
-        lambda x: os.path.splitext(x)[-1].lower() == ".mp4"
+        lambda x: Path(x).suffix.lower() == ".mp4"
     )
+
     mask_format = df["format_name"] == "mov,mp4,m4a,3gp,3g2,mj2"
     mask_ok = mask_cv_ok & mask_ca_ok & mask_isavc & mask_mp4 & mask_format
     df["to_convert"] = 0

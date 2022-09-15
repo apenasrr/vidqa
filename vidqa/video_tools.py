@@ -18,11 +18,11 @@ def convert_only_audio(
     )
 
     stringa = (
-        f'ffmpeg -y -i "{path_file_video_origin}" '
+        f'ffmpeg -v quiet -stats -y -i "{path_file_video_origin}" '
         + "-vcodec copy "
         + f'-c:a aac "{path_file_video_dest}"'
     )
-
+    print("\n", stringa)
     os.system(stringa)
     logging.info("Done")
 
@@ -42,11 +42,11 @@ def convert_mp4_wo_reencode(
     )
 
     stringa = (
-        f'ffmpeg -y -i "{path_file_video_origin}" '
+        f'ffmpeg -v quiet -stats -y -i "{path_file_video_origin}" '
         + "-vcodec copy "
         + f'-acodec copy "{path_file_video_dest}"'
     )
-
+    print("\n", stringa)
     os.system(stringa)
     logging.info("Done")
 
@@ -62,7 +62,7 @@ def convert_mp4_aac(
     """
 
     stringa = (
-        f'ffmpeg -y -i "{path_file_video_origin}" '
+        f'ffmpeg -v quiet -stats -y -i "{path_file_video_origin}" '
         + "-c:v libx264 "
         + "-crf 18 "
         + "-maxrate 2.5M "
@@ -75,6 +75,6 @@ def convert_mp4_aac(
         + "-movflags +faststart "
         + f'-c:a aac "{path_file_video_dest}"'
     )
-
+    print("\n", stringa)
     os.system(stringa)
     logging.info("Done")

@@ -1,45 +1,59 @@
 """Console script for vidqa."""
 import os
 import sys
+from logging import raiseExceptions
+from pathlib import Path
 
 import click
 
 from . import config, sanitize_files, vidqa
 
 
-def one_time(input: str, video_extensions: tuple):
-    """Analyze the videos of a folder
-
+def one_time(folder_path: Path, video_extensions: tuple):
+    """Analyze the videos of a folder. Unique log file.
+    Ensure that:
+     - H264/AAC codec standard for all videos
+     - All file paths have up to 260 characters
     Args:
-        input (str): input path folder
+        folder_input (str): input path folder
         video_extensions (tuple): video extensions to be analyzed
     """
 
-    report = os.path.basename(input) + ".csv"
-    vidqa(input, report, video_extensions=video_extensions)
+    report_file_name = folder_path.name + ".csv"
+    if not folder_path.exists():
+        raise FileNotFoundError(folder_path)
+
+    vidqa(folder_path, report_file_name, video_extensions=video_extensions)
 
 
-def batch_mode(input: str, video_extensions: tuple):
-    """Analyzes all internal folders as different projects, analyzing your videos
-
+def batch_mode(folder_path: Path, video_extensions: tuple):
+    """Analyze the videos of each internal folders. Multiple log files.
+    Ensure that:
+     - H264/AAC codec standard for all videos
+     - All file paths have up to 260 characters
     Args:
-        input (str): input path folder
+        folder_path (Path): input path folder
         video_extensions (tuple): video extensions to be analyzed
     """
 
-    sanitize_files(input)
+    if not folder_path.exists():
+        raise FileNotFoundError(folder_path)
 
-    list_dir_name = os.listdir(input)
-    for dir_name in list_dir_name:
-        path_dir = os.path.join(input, dir_name)
-        report = os.path.basename(path_dir) + ".csv"
-        vidqa(path_dir, report, video_extensions=video_extensions)
+    sanitize_files(folder_path)
+
+    list_folder_path = [
+        path for path in folder_path.iterdir() if path.is_dir()
+    ]
+    for folder_path in list_folder_path:
+
+        report_file_name = Path(folder_path.name + ".csv")
+        vidqa(folder_path, report_file_name, video_extensions=video_extensions)
 
 
 @click.command()
 @click.option(
     "-i",
-    "--input",
+    "--folder_input",
     required=True,
     type=click.STRING,
     help="Input folder path",
@@ -52,27 +66,24 @@ def batch_mode(input: str, video_extensions: tuple):
     type=click.Choice(["unique", "batch"]),
     help="Type execution",
 )
-def main(input: str, mode: str):
+def main(folder_input: str, mode: str):
     """Console script for vidqa."""
 
     click.echo("vidqa.cli.main")
-    config_file = os.path.join(
-        os.path.dirname(os.path.abspath(os.path.abspath(__file__))),
-        "config.ini",
-    )
 
+    config_file = Path(__file__).absolute().parent / "config.ini"
     config_data = config.get_data(config_file)
     video_extensions = config_data["video_extensions"].split(",")
-
+    folder_path = Path(folder_input)
     if mode == "unique":
-        one_time(input, video_extensions)
+        one_time(folder_path, video_extensions)
     else:
-        batch_mode(input, video_extensions)
+        batch_mode(folder_path, video_extensions)
 
     return 0
 
 
 if __name__ == "__main__":
-    input_ = input("input: ")
+    folder_input = input("input: ")
     mode = input("mode: ")
-    sys.exit(main(input_, mode))  # pragma: no cover
+    sys.exit(main(folder_input, mode))  # pragma: no cover

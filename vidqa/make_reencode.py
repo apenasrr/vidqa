@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import hashlib
 import logging
-import os
 import sys
+from pathlib import Path
 
 import pandas as pd
 
@@ -12,13 +14,13 @@ from .video_tools import (
 )
 
 
-def get_next_video_to_reencode(path_file_report: str):
+def get_next_video_to_reencode(path_file_report: Path) -> dict[str, str]:
 
     # load dataframe
     try:
         df = pd.read_csv(path_file_report)
     except Exception as e:
-        logging.error(f"Can't open file: {path_file_report}")
+        logging.error(f"Can't open file: {str(path_file_report)}")
         logging.error(e)
 
     # create mask to reencode
@@ -42,12 +44,14 @@ def get_next_video_to_reencode(path_file_report: str):
     return dict_first_line
 
 
-def convert_video_from_dict(dict_metadata: dict, path_file_dest: str) -> None:
+def convert_video_from_dict(
+    dict_metadata: dict[str, str], path_file_dest: str
+) -> None:
     """convert video
 
     Args:
-        dict_ (dataframe): keys: [file_path_folder_origin,
-                                  file_name_origin]
+        dict_metadata (dict[str, str]): keys: ["path_file", "video_codec",
+                                               "audio_codec", "format_name"]
         path_file_dest (str): file_path destination for converted video
     Return:
         (boolean): False if error.
@@ -72,33 +76,47 @@ def convert_video_from_dict(dict_metadata: dict, path_file_dest: str) -> None:
 
 
 def get_file_name_dest(
-    file_folder_origin, file_name_origin, prefix, file_extension=None
-):
+    file_folder_origin: Path,
+    file_name_origin: Path,
+    prefix: str,
+    file_extension: bool = None,
+) -> Path:
     """
-    Create a hashed file name dest.
-    Template: reencode_{file_name_origin}_{hash}.mp4"
+    Create a hashed file name through a unique identification from the path
+    of the parent folder.
+
+    Args:
+        file_folder_origin (Path): file_folder_origin
+        file_name_origin (Path): file_name_origin
+        prefix (str): prefix
+        file_extension (bool, optional): file_extension. Defaults to None.
+
+    Returns:
+        (Path): file name with hash
     """
 
-    file_folder_origin_encode = file_folder_origin.encode("utf-8")
+    file_folder_origin_encode = str(file_folder_origin).encode("utf-8")
     hash = hashlib.md5(file_folder_origin_encode).hexdigest()[:5]
-    file_name_origin_without_extension = os.path.splitext(file_name_origin)[0]
-    if file_extension == None:
-        file_extension = os.path.splitext(file_name_origin)[1]
+    file_name_origin_without_extension = file_name_origin.stem
+    if file_extension is None:
+        file_extension = file_name_origin.suffix
     else:
         file_extension = "." + file_extension
 
     file_name_dest = (
         prefix
-        + file_name_origin_without_extension
+        + str(file_name_origin_without_extension)
         + "_"
         + hash
         + file_extension
     )
-    return file_name_dest
+    return Path(file_name_dest)
 
 
 def update_file_report(
-    path_file_report: str, dict_video_data: str, path_file_dest: str
+    path_file_report: Path,
+    dict_video_data: dict[str, str],
+    path_file_dest: Path,
 ) -> pd.DataFrame:
 
     try:
@@ -109,11 +127,10 @@ def update_file_report(
 
     file_folder_origin = dict_video_data["file_path_folder"]
     file_name_origin = dict_video_data["file_name"]
-    path_file_origin = os.path.join(file_folder_origin, file_name_origin)
+    path_file_origin = Path(file_folder_origin) / file_name_origin
 
     # Check if file_name_dest exist
-    test_file_exist = os.path.isfile(path_file_dest)
-    if test_file_exist is False:
+    if not path_file_dest.exists():
         logging.error(
             "After reencode, when update, "
             + f"reencoded file not exist:\n{path_file_dest}"
@@ -134,25 +151,23 @@ def update_file_report(
         sys.exit()
     index_video = df_filter.index
     df.loc[index_video, "conversion_done"] = 1
-    df.loc[index_video, "path_file_converted"] = os.path.abspath(
-        path_file_dest
-    )
+    df.loc[index_video, "path_file_converted"] = str(path_file_dest.absolute())
     return df
 
 
 def make_reencode(
-    path_file_report: str, path_folder_encoded: str
+    path_file_report: Path, path_folder_encoded: Path
 ) -> pd.DataFrame:
-    def get_path_file_dest(dict_video_data):
+    def get_path_file_dest(dict_video_data, path_folder_encoded):
         # find path_folder_dest and path_file_dest
-        file_folder_origin = dict_video_data["file_path_folder"]
-        file_name_origin = dict_video_data["file_name"]
+        file_folder_origin = Path(dict_video_data["file_path_folder"])
+        file_name_origin = Path(dict_video_data["file_name"])
 
         file_name_dest = get_file_name_dest(
             file_folder_origin, file_name_origin, "", "mp4"
         )
 
-        path_file_dest = os.path.join(path_folder_encoded, file_name_dest)
+        path_file_dest = path_folder_encoded / file_name_dest
         return path_file_dest
 
     df = pd.read_csv(path_file_report)
@@ -173,7 +188,9 @@ def make_reencode(
             need_reencode = False
             continue
 
-        path_file_dest = get_path_file_dest(dict_video_data)
+        path_file_dest = get_path_file_dest(
+            dict_video_data, path_folder_encoded
+        )
         # run reencode
         convert_video_from_dict(dict_video_data, path_file_dest)
 
