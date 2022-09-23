@@ -119,6 +119,7 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
     while True:
         try:
             path_converted.rename(file_path_converted_destination)
+            break
         except Exception as e:
             logging.error("Move fail. Trying again.: %s", str(path_converted))
             time.sleep(2)
