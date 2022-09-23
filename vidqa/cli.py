@@ -1,7 +1,7 @@
 """Console script for vidqa."""
-import os
+from __future__ import annotations
+
 import sys
-from logging import raiseExceptions
 from pathlib import Path
 
 import click
