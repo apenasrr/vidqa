@@ -1,6 +1,9 @@
 """Main module."""
 
+from __future__ import annotations
+
 import logging
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -113,12 +116,12 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
     path_origin.unlink()
 
     # move path_converted to file_path_converted_destination
-    try:
-        path_converted.rename(file_path_converted_destination)
-    except Exception as e:
-        logging.error(e)
-        logging.error("move fail: %s", str(path_converted))
-        raise PermissionError(f"move fail: {str(path_converted)}")
+    while True:
+        try:
+            path_converted.rename(file_path_converted_destination)
+        except Exception as e:
+            logging.error("Move fail. Trying again.: %s", str(path_converted))
+            time.sleep(2)
 
 
 def replace_converted_video_all(report_path: Path):
