@@ -25,8 +25,8 @@ Features
 Ensures:
 
 * File paths less than 250 characters
-* File names be less than 100 chars
-* Videos are in mp4 format and h24/aac codecs
+* File names be less than 150 chars
+* Videos are in mp4 format and h264/aac codecs
 
 Usage
 -----
