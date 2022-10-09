@@ -14,6 +14,7 @@ requirements = [
     "Click>=7.0",
     "natsort>=8.2.0",
     "Unidecode>=1.3.4",
+    "pandas",
 ]
 
 test_requirements = []
