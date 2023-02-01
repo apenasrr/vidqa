@@ -158,7 +158,7 @@ def get_list_dict_report_video_metadata(list_path_file: list[Path]):
     return list_dict_report_video_metadata
 
 
-def get_list_dict_inf_ffprobe(list_path_file: list):
+def get_list_dict_inf_ffprobe(list_path_file: list[str]):
     """Returns metadata from a video file lists
 
     Args:
@@ -172,7 +172,7 @@ def get_list_dict_inf_ffprobe(list_path_file: list):
     for file_selected in list_path_file:
         d = {}
         d["path_file"] = file_selected
-        logging.info("run ffproble: %s", file_selected)
+        logging.info("run ffprobe: %s", file_selected)
         # generate raw metadata
         dict_inf_ffprobe = ffprobe(file_selected).get_output_as_dict()
         d["metadata"] = dict_inf_ffprobe

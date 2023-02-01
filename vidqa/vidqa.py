@@ -171,29 +171,7 @@ def sanitize_files(folder_path: Path):
             return
 
 
-def vidqa(
-    folder_path: Path,
-    report_path: Path = None,
-    path_folder_convert: Path = Path("temp"),
-    video_extensions: tuple = None,
-):
-    """Warning if file path or file name is greater than they should.
-    Ensure that video profile is format mp4, v/a codec H264/aac.
-
-    Args:
-        report_path (str): file path of report metadata
-        path_dir (str): input folder
-        video_extensions (tuple): video file extension to be analyzed
-        path_folder_convert (str): temp folder to receive converted videos
-    """
-
-    config_file = Path(__file__).absolute().parent / "config.ini"
-
-    config_data = config.get_data(config_file)
-    if video_extensions is None:
-        video_extensions = config_data["video_extensions"].split(",")
-    if report_path is None:
-        report_path = Path(folder_path.name + ".csv")
+def create_video_report(report_path, folder_path, video_extensions):
 
     logging.info("Star folder analysis: %s", folder_path)
     (
@@ -229,8 +207,37 @@ def vidqa(
 
     df_video_metadata.to_csv(report_path, index=False)
 
+
+def vidqa(
+    folder_path: Path,
+    report_path: Path = None,
+    path_folder_convert: Path = Path("temp"),
+    video_extensions: tuple = None,
+):
+    """Warning if file path or file name is greater than they should.
+    Ensure that video profile is format mp4, v/a codec H264/aac.
+
+    Args:
+        report_path (str): file path of report metadata
+        path_dir (str): input folder
+        video_extensions (tuple): video file extension to be analyzed
+        path_folder_convert (str): temp folder to receive converted videos
+    """
+
+    config_file = Path(__file__).absolute().parent / "config.ini"
+
+    config_data = config.get_data(config_file)
+    if video_extensions is None:
+        video_extensions = config_data["video_extensions"].split(",")
+    if report_path is None:
+        report_path = Path(folder_path.name + ".csv")
+
+    if not report_path.exists():
+        create_video_report(report_path, folder_path, video_extensions)
+
     if not path_folder_convert.exists():
         path_folder_convert.mkdir()
+
     make_reencode.make_reencode(report_path, path_folder_convert)
     replace_converted_video_all(report_path)
 

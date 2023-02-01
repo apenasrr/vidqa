@@ -66,13 +66,32 @@ def convert_video_from_dict(
 
     # Make video conversion
     if video_codec == "h264" and audio_codec == "aac":
-        logging.info("Start conversion without reencode: %s", path_file_origin)
+        logging.info(
+            "Start conversion without reencode: %s-%s-%s | %s",
+            audio_codec,
+            video_codec,
+            format_name,
+            path_file_origin,
+        )
         convert_mp4_wo_reencode(path_file_origin, path_file_dest)
-    elif video_codec == "h264" and format_name == "mov,mp4,m4a,3gp,3g2,mj2":
-        logging.info("Start conversion only audio: %s", path_file_origin)
+    elif video_codec == "h264":
+        # elif video_codec == "h264" and format_name == "mov,mp4,m4a,3gp,3g2,mj2":
+        logging.info(
+            "Start conversion only audio: %s-%s-%s | %s",
+            audio_codec,
+            video_codec,
+            format_name,
+            path_file_origin,
+        )
         convert_only_audio(path_file_origin, path_file_dest)
     else:
-        logging.info("Start reencode: %s", path_file_origin)
+        logging.info(
+            "Start reencode: %s-%s-%s | %s",
+            audio_codec,
+            video_codec,
+            format_name,
+            path_file_origin,
+        )
         convert_mp4_aac(path_file_origin, path_file_dest)
 
 

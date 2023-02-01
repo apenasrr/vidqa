@@ -24,7 +24,9 @@ def one_time(folder_path: Path, video_extensions: tuple):
     if not folder_path.exists():
         raise FileNotFoundError(folder_path)
 
-    vidqa(folder_path, report_file_name, video_extensions=video_extensions)
+    vidqa(
+        folder_path, Path(report_file_name), video_extensions=video_extensions
+    )
 
 
 def batch_mode(folder_path: Path, video_extensions: tuple):
@@ -47,7 +49,6 @@ def batch_mode(folder_path: Path, video_extensions: tuple):
         path for path in folder_path.iterdir() if path.is_dir()
     ]
     for folder_path in list_folder_path:
-
         report_file_name = Path(folder_path.name + ".csv")
         vidqa(folder_path, report_file_name, video_extensions=video_extensions)
 
