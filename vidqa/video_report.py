@@ -175,6 +175,12 @@ def get_list_dict_inf_ffprobe(list_path_file: list[str]):
         logging.info("run ffprobe: %s", file_selected)
         # generate raw metadata
         dict_inf_ffprobe = ffprobe(file_selected).get_output_as_dict()
+        if len(dict_inf_ffprobe) == 0:  # dict vazio
+            logging.error(
+                "File likely corrupted-No metadata:\n" + "_" * 25 + "%s\n",
+                file_selected,
+            )
+            continue
         d["metadata"] = dict_inf_ffprobe
         list_dict.append(d)
     return list_dict

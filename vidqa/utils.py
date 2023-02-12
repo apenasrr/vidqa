@@ -46,10 +46,16 @@ def get_all_file_path(folder_path: Path, sort=True) -> dict[str, list[Path]]:
 
     if sort:
         list_file_path = natsort.natsorted(
-            list_file_path, lambda x: unidecode.unidecode(str(x).lower())
+            list_file_path,
+            lambda x: unidecode.unidecode(
+                str(x).encode("utf-8", errors="ignore").decode().lower()
+            ),
         )
         list_error = natsort.natsorted(
-            list_error, lambda x: unidecode.unidecode(str(x).lower())
+            list_error,
+            lambda x: unidecode.unidecode(
+                str(x).encode("utf-8", errors="ignore").decode().lower()
+            ),
         )
 
     return {"content": list_file_path, "errors": list_error}

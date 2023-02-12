@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
+from typing import Callable
 
 import pandas as pd
 
@@ -159,35 +160,68 @@ def sanitize_files(folder_path: Path):
     Args:
         folder_path (Path): folder path
     """
+
     logging.info("Star folder analysis: %s", str(folder_path))
     while True:
-        (_, list_folders_path_rejected,) = test_folders_has_path_too_long(
+        (
+            list_folders_path_approved,
+            list_folders_path_rejected,
+        ) = test_folders_has_path_too_long(
             [folder_path], max_path=250, max_name=150
         )
 
         if len(list_folders_path_rejected) > 0:
             input("\nAfter correcting, press something to continue.\n")
         else:
-            return
+            return list_folders_path_approved
 
 
-def create_video_report(report_path, folder_path, video_extensions):
+def sanitize_file_or_folder(item: Path):
+    """Check if the file name or folder is compatible with Encoding UTF-8.
+    If not, it renames to become compatible.
 
-    logging.info("Star folder analysis: %s", folder_path)
-    (
-        list_folders_path_approved,
-        list_folders_path_rejected,
-    ) = test_folders_has_path_too_long(
-        [folder_path], max_path=260, max_name=150
-    )
+    Args:
+        item (Path): Path of file or folder
+    """
 
-    if len(list_folders_path_rejected) > 0:
-        input("\nAfter correcting, press something to continue.\n")
+    try:
+        item.name.encode("utf-8")
+    except UnicodeEncodeError:
+        new_item_name = item.name.encode("utf-8", errors="ignore").decode()
+        new_item = item.parent / new_item_name
+        logging.error(
+            "Charmap error name: %s, location: %s",
+            item.name.encode(errors="replace").decode(),
+            item.parent,
+        )
+        logging.error("_Fixing. Rename to: %s", new_item_name)
+        item.rename(new_item)
 
-    if len(list_folders_path_approved) > 0:
-        folder_path = list_folders_path_approved[0]
-    else:
+
+def apply_recursive_in_folder(func_: Callable, folder_path: Path):
+    """Sanitizes all folders and files for UTF-8 compatible names
+
+    Args:
+        func_ (Callable): function to be apply to all folder and files
+        folder_path (Path): folder path
+    """
+
+    for item in folder_path.rglob("*"):
+        if item.is_file() or item.is_dir():
+            func_(item)
+
+
+def create_video_report(
+    report_path: Path, folder_path: Path, video_extensions: tuple
+):
+
+    list_folders_path_approved = sanitize_files(folder_path)
+
+    if len(list_folders_path_approved) == 0:
         return []
+
+    # sanitize all file/folder names
+    apply_recursive_in_folder(sanitize_file_or_folder, folder_path)
 
     list_path_video = get_list_path_video(folder_path, video_extensions)
     if len(list_path_video) == 0:
