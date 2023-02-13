@@ -13,7 +13,6 @@ from vidqa import utils
 
 from . import config, make_reencode, video_report
 from .check_path import test_folders_has_path_too_long
-from .utils import get_all_file_path
 
 
 def logging_config():
@@ -242,6 +241,61 @@ def create_video_report(
     df_video_metadata.to_csv(report_path, index=False)
 
 
+def check_report_integrity(report_path: Path) -> bool:
+    """Checks the existence of the input and output files in the report
+    If any of them don't exist, offers the option to delete the report and
+    output files.
+    Also offers the option to check again.
+
+    Args:
+        report_path (Path): report path.
+                            Necessary columns: path_file, path_file_converted
+
+    Returns:
+        bool: True to continue. False to start from scratch.
+    """
+
+    message = (
+        "\nAttention:\nThere are file paths recorded in the plan_report that "
+        + "were not found and thus it is not possible to continue the "
+        + "conversion.\n\n"
+        + "Press 'y' to delete both the already converted videos and the "
+        + "report and start from scratch.\n\n"
+        + "Press any other key to check again the existence of the necessary "
+        + "files to continue from where it stopped."
+    )
+
+    while True:
+        df = pd.read_csv(Path(report_path))
+        list_path_not_exists = [
+            x
+            for x in df["path_file"].dropna().to_list()
+            + df["path_file_converted"].dropna().to_list()
+            if not Path(x).exists()
+        ]
+        if len(list_path_not_exists) == 0:
+            return True
+        else:
+            for path_file in list_path_not_exists:
+                print(f"- {path_file}")
+            print(message)
+            delete_all = input("Answer: ")
+            if delete_all == "y":
+                report_path.unlink()
+                list_path_exists = [
+                    x
+                    for x in df["path_file_converted"].dropna().to_list()
+                    if Path(x).exists()
+                ]
+                if len(list_path_exists) != 0:
+                    for path_file in list_path_exists:
+                        Path(path_file).unlink()
+                return False
+            else:
+                # loop to check report again
+                pass
+
+
 def vidqa(
     folder_path: Path,
     report_path: Path = None,
@@ -267,6 +321,10 @@ def vidqa(
         report_path = Path(folder_path.name + ".csv")
 
     if not report_path.exists():
+        report_integrity = False
+    else:
+        report_integrity = check_report_integrity(report_path)
+    if not report_integrity:
         create_video_report(report_path, folder_path, video_extensions)
 
     if not path_folder_convert.exists():
