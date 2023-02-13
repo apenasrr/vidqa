@@ -9,7 +9,7 @@ from . import utils
 
 
 def test_folders_has_path_too_long(
-    list_path_folder: list[Path], max_path: int = 260, max_name: int = 260
+    list_path_folder: list[Path], max_path: int = 260, max_name: int = 150
 ) -> tuple[list[Path], list[Path]]:
     """tests a serie of folders if any of them has files whose filepath
     has a larger length than stipulated in max_path
@@ -17,6 +17,7 @@ def test_folders_has_path_too_long(
     Args:
         list_path_folder (list[Path]): list of path_folder to be tested
         max_path (int, optional): max filepath len permitted. Defaults to 260.
+        max_name (int, optional): max name len permitted. Defaults to 150.
 
     Returns:
         list[Path]: [list_folders_path_approved: less than max_path
@@ -70,7 +71,11 @@ def test_folder_has_filepath_too_long(
         if len_file_path > max_path:
             list_file_path_long.append(file_path)
 
-    if len(list_file_path_long) != 0 or len(list_file_name_long) != 0:
+    if (
+        len(list_file_path_long) != 0
+        or len(list_file_name_long) != 0
+        or len(list_file_path_errors) != 0
+    ):
         return_dict["result"] = False
 
     return_dict["list_file_path_long"] = (
