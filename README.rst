@@ -45,6 +45,27 @@ batch mode to apply to a parent folder generating a different log file for each 
 
     $ vidqa -i "paste_a_folder_path" -m batch
 
+
+**To show or change encode video flags in CLI mode**
+
+Show actual flags
+
+.. code-block:: text
+
+    $ vidqa flags
+
+CRF - Constante Rate Frame. Stable quality. Default 18 to visually lossless.
+
+.. code-block:: text
+
+    $ vidqa flags --crf 23
+
+maxrate - maximum bitrate peak in a second. Default 2 (MiB) to flow in slow connection stream.
+
+.. code-block:: text
+
+    $ vidqa flags --maxrate 3
+
 Credits
 -------
 
