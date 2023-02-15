@@ -53,40 +53,75 @@ def batch_mode(folder_path: Path, video_extensions: tuple):
         vidqa(folder_path, report_file_name, video_extensions=video_extensions)
 
 
-@click.command()
+@click.group(invoke_without_command=True)
+@click.pass_context
 @click.option(
     "-i",
     "--folder_input",
-    required=True,
+    required=False,
     type=click.STRING,
     help="Input folder path",
 )
 @click.option(
     "-m",
     "--mode",
-    required=True,
+    required=False,
     default="unique",
     type=click.Choice(["unique", "batch"]),
     help="Type execution",
 )
-def main(folder_input: str, mode: str):
+def main(ctx, folder_input: str, mode: str):
     """Console script for vidqa."""
 
     click.echo("vidqa.cli.main")
+    if not ctx.invoked_subcommand:
+        config_file = Path(__file__).absolute().parent / "config.ini"
+        config_data = config.get_data(config_file)
+        video_extensions = config_data["video_extensions"].split(",")
+        folder_path = Path(folder_input)
+        if mode == "unique":
+            one_time(folder_path, video_extensions)
+        else:
+            batch_mode(folder_path, video_extensions)
 
+        return 0
+
+
+@main.command()
+@click.option(
+    "-c",
+    "--crf",
+    required=False,
+    type=click.FLOAT,
+    help="set crf",
+)
+@click.option(
+    "-x",
+    "--maxrate",
+    required=False,
+    type=click.FLOAT,
+    help="set maxrate",
+)
+def flags(crf, maxrate):
     config_file = Path(__file__).absolute().parent / "config.ini"
-    config_data = config.get_data(config_file)
-    video_extensions = config_data["video_extensions"].split(",")
-    folder_path = Path(folder_input)
-    if mode == "unique":
-        one_time(folder_path, video_extensions)
+    if crf:
+        config_data = config.set_data(
+            config_file, variable="crf", value=str(crf)
+        )
+        click.echo(f"Flag crf set to: {crf}")
+    elif maxrate:
+        config_data = config.set_data(
+            config_file, variable="maxrate", value=str(maxrate)
+        )
+        click.echo(f"Flag maxrate set to: {maxrate}")
     else:
-        batch_mode(folder_path, video_extensions)
-
-    return 0
+        click.echo("--Actual flags--")
+        config_data = config.get_data(config_file)
+        for key, value in config_data.items():
+            click.echo(f"{key}: {value}")
 
 
 if __name__ == "__main__":
     folder_input = input("input: ")
     mode = input("mode: ")
-    sys.exit(main(folder_input, mode))  # pragma: no cover
+    sys.exit(main(None, folder_input, mode))  # pragma: no cover
