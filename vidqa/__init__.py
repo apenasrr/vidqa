@@ -1,5 +1,5 @@
 """Top-level package for vidqa."""
-from . import utils
+from . import utils, video_tools
 from .vidqa import *
 
 __author__ = """apenasrr"""

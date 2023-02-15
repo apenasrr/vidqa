@@ -45,7 +45,9 @@ def get_next_video_to_reencode(path_file_report: Path) -> dict[str, str]:
 
 
 def convert_video_from_dict(
-    dict_metadata: dict[str, str], path_file_dest: str
+    dict_metadata: dict[str, str],
+    path_file_dest: str,
+    flags: dict = {"crf": 18, "maxrate": 4},
 ) -> None:
     """convert video
 
@@ -54,6 +56,8 @@ def convert_video_from_dict(
                                                "audio_codec", "format_name"]
 
         path_file_dest (str): file_path destination for converted video
+        flags (dict, optional): video conversion flags.
+            Defaults to {'crf': 18, 'maxrate': 4}.
     Return:
         (boolean): False if error.
     """
@@ -75,7 +79,6 @@ def convert_video_from_dict(
         )
         convert_mp4_wo_reencode(path_file_origin, path_file_dest)
     elif video_codec == "h264":
-        # elif video_codec == "h264" and format_name == "mov,mp4,m4a,3gp,3g2,mj2":
         logging.info(
             "Start conversion only audio: %s-%s-%s | %s",
             audio_codec,
@@ -92,7 +95,7 @@ def convert_video_from_dict(
             format_name,
             path_file_origin,
         )
-        convert_mp4_aac(path_file_origin, path_file_dest)
+        convert_mp4_aac(path_file_origin, path_file_dest, flags)
 
 
 def get_file_name_dest(
@@ -176,8 +179,22 @@ def update_file_report(
 
 
 def make_reencode(
-    path_file_report: Path, path_folder_encoded: Path
+    path_file_report: Path,
+    path_folder_encoded: Path,
+    flags: dict = {"crf": 18, "maxrate": 4},
 ) -> pd.DataFrame:
+    """Converts all videos of the report.
+        Required columns: file_path_folder, file_name
+
+    Args:
+        path_file_report (Path): report path. csv.
+        path_folder_encoded (Path): converted videos folder path
+        flags (dict, optional): video conversion flags. Defaults to {'crf': 18, 'maxrate': 4}.
+
+    Returns:
+        pd.DataFrame: updated report dataframe
+    """
+
     def get_path_file_dest(dict_video_data, path_folder_encoded):
         # find path_folder_dest and path_file_dest
         file_folder_origin = Path(dict_video_data["file_path_folder"])
@@ -212,7 +229,7 @@ def make_reencode(
             dict_video_data, path_folder_encoded
         )
         # run reencode
-        convert_video_from_dict(dict_video_data, path_file_dest)
+        convert_video_from_dict(dict_video_data, path_file_dest, flags)
 
         # after reencode, update flag conversion_done
         df = update_file_report(

@@ -301,6 +301,7 @@ def vidqa(
     report_path: Path = None,
     path_folder_convert: Path = Path("temp"),
     video_extensions: tuple = None,
+    flags: dict = None,
 ):
     """Warning if file path or file name is greater than they should.
     Ensure that video profile is format mp4, v/a codec H264/aac.
@@ -310,6 +311,7 @@ def vidqa(
         path_dir (str): input folder
         video_extensions (tuple): video file extension to be analyzed
         path_folder_convert (str): temp folder to receive converted videos
+        flags (dict, optional): video conversion flags. Defaults to None.
     """
 
     config_file = Path(__file__).absolute().parent / "config.ini"
@@ -317,6 +319,12 @@ def vidqa(
     config_data = config.get_data(config_file)
     if video_extensions is None:
         video_extensions = config_data["video_extensions"].split(",")
+
+    if flags is None:
+        crf = config_data.get("crf", 18)
+        maxrate = config_data.get("maxrate", 2)
+        flags = {"crf": crf, "maxrate": maxrate}
+
     if report_path is None:
         report_path = Path(folder_path.name + ".csv")
 
@@ -330,7 +338,7 @@ def vidqa(
     if not path_folder_convert.exists():
         path_folder_convert.mkdir()
 
-    make_reencode.make_reencode(report_path, path_folder_convert)
+    make_reencode.make_reencode(report_path, path_folder_convert, flags)
     replace_converted_video_all(report_path)
 
 
@@ -338,10 +346,15 @@ def main():
 
     config_data = config.get_data("config.ini")
     video_extensions = config_data["video_extensions"].split(",")
+
+    crf = config_data.get("crf", 18)
+    maxrate = config_data.get("maxrate", 2)
+    flags = {"crf": crf, "maxrate": maxrate}
+
     report_path = Path("report_metadata.csv")
     folder_path = ""
 
-    vidqa(folder_path, report_path, video_extensions=video_extensions)
+    vidqa(folder_path, report_path, video_extensions, flags)
 
 
 logging_config()
