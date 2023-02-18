@@ -45,6 +45,11 @@ batch mode to apply to a parent folder generating a different log file for each 
 
     $ vidqa -i "paste_a_folder_path" -m batch
 
+Use by defining folder destination of the Metadata Report and Temporary Folder of Converted Videos
+
+.. code-block:: text
+
+    $ vidqa -i "paste_a_folder_path" -m unique -fd "c://my_temp_folder"
 
 **To show or change encode video flags in CLI mode**
 
@@ -54,7 +59,7 @@ Show actual flags
 
     $ vidqa flags
 
-CRF - Constante Rate Frame. Stable quality. Default 18 to visually lossless.
+CRF - Constante Rate Frame. Stable quality. Default 20 for minimal loss.
 
 .. code-block:: text
 
@@ -65,6 +70,19 @@ maxrate - maximum bitrate peak in a second. Default 2 (MiB) to flow in slow conn
 .. code-block:: text
 
     $ vidqa flags --maxrate 3
+
+folder_destination - Default folder where converted temporary reports and videos should be stored
+
+.. code-block:: text
+
+    $ vidqa flags -fd "c://my_temp_folder"
+
+default_destination - Activates the default folder
+
+.. code-block:: text
+
+    $ vidqa flags -dd 1 # 0 to deactivate
+
 
 Credits
 -------
