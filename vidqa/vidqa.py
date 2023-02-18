@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Union
 
 import pandas as pd
 
@@ -296,10 +296,54 @@ def check_report_integrity(report_path: Path) -> bool:
                 pass
 
 
+def get_folder_destination(
+    folder_path: Path, path_folder_convert: Path = None
+) -> Path:
+    """
+    Returns the destination folder path for storing converted videos
+    and metadata report.
+
+    Args:
+        folder_path (Path): Path to the source folder containing files to be
+            converted.
+        path_folder_convert (Path, optional): Path to the destination folder
+            for storing converted files. If not specified, converted files will
+            be stored in the parent directory of the source folder with the
+            prefix "vidqa_".
+
+    Returns:
+        Path: Full path to the destination folder where the converted files
+            will be stored.
+
+    Raises:
+        FileNotFoundError: If the source folder specified in `folder_path` does
+            not exist.
+    """
+    # TODO: test this funcion
+    if not folder_path.exists() or not folder_path.is_dir():
+        raise FileNotFoundError(
+            f"{folder_path}\nThe source folder does not exist."
+        )
+
+    if not path_folder_convert:
+        folder_destination = (
+            Path(folder_path).absolute().parents[0]
+            / f"vidqa_{folder_path.name}"
+        )
+    else:
+        if not path_folder_convert.exists():
+            path_folder_convert.mkdir()
+        folder_destination = Path(path_folder_convert) / (
+            "vidqa_" + Path(folder_path).name
+        )
+    folder_destination.mkdir(exist_ok=True)
+    return folder_destination
+
+
 def vidqa(
     folder_path: Path,
-    report_path: Path = None,
-    path_folder_convert: Path = Path("temp"),
+    report_path: Union[Path, None] = None,
+    path_folder_convert: Union[Path, None] = None,
     video_extensions: tuple = None,
     flags: dict = None,
 ):
@@ -325,8 +369,12 @@ def vidqa(
         maxrate = config_data.get("maxrate", 2)
         flags = {"crf": crf, "maxrate": maxrate}
 
+    folder_destination = get_folder_destination(
+        folder_path, path_folder_convert
+    )
+
     if report_path is None:
-        report_path = Path(folder_path.name + ".csv")
+        report_path = Path(folder_destination) / (folder_path.name + ".csv")
 
     if not report_path.exists():
         report_integrity = False
@@ -335,10 +383,7 @@ def vidqa(
     if not report_integrity:
         create_video_report(report_path, folder_path, video_extensions)
 
-    if not path_folder_convert.exists():
-        path_folder_convert.mkdir()
-
-    make_reencode.make_reencode(report_path, path_folder_convert, flags)
+    make_reencode.make_reencode(report_path, folder_destination, flags)
     replace_converted_video_all(report_path)
 
 
