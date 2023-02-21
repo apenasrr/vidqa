@@ -16,7 +16,6 @@ from .check_path import test_folders_has_path_too_long
 
 
 def logging_config():
-
     logfilename = "log-" + "vidqa" + ".txt"
     logging.basicConfig(
         handlers=[
@@ -38,7 +37,6 @@ def logging_config():
 
 
 def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
-
     # To input more file video extension:
     #  https://dotwhat.net/type/video-movie-files
 
@@ -126,7 +124,6 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
 
 
 def replace_converted_video_all(report_path: Path):
-
     while True:
         try:
             df = pd.read_csv(str(report_path))
@@ -213,7 +210,6 @@ def apply_recursive_in_folder(func_: Callable, folder_path: Path):
 def create_video_report(
     report_path: Path, folder_path: Path, video_extensions: tuple
 ):
-
     list_folders_path_approved = sanitize_files(folder_path)
 
     if len(list_folders_path_approved) == 0:
@@ -365,8 +361,8 @@ def vidqa(
         video_extensions = config_data["video_extensions"].split(",")
 
     if flags is None:
-        crf = config_data.get("crf", 18)
-        maxrate = config_data.get("maxrate", 2)
+        crf = float(config_data.get("crf", 18))
+        maxrate = float(config_data.get("maxrate", 2))
         flags = {"crf": crf, "maxrate": maxrate}
 
     folder_destination = get_folder_destination(
@@ -376,11 +372,12 @@ def vidqa(
     if report_path is None:
         report_path = Path(folder_destination) / (folder_path.name + ".csv")
 
-    if not report_path.exists():
-        report_integrity = False
+    if report_path.exists():
+        integrity_check_passed = check_report_integrity(report_path)
     else:
-        report_integrity = check_report_integrity(report_path)
-    if not report_integrity:
+        integrity_check_passed = False
+
+    if not integrity_check_passed:
         create_video_report(report_path, folder_path, video_extensions)
 
     make_reencode.make_reencode(report_path, folder_destination, flags)
@@ -388,7 +385,6 @@ def vidqa(
 
 
 def main():
-
     config_data = config.get_data("config.ini")
     video_extensions = config_data["video_extensions"].split(",")
 

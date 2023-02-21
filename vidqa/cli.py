@@ -9,6 +9,8 @@ import click
 
 from . import config, sanitize_files, vidqa
 
+# import debugpy
+
 
 def one_time(
     folder_path: Path,
@@ -137,16 +139,31 @@ def main(
             return path_folder_convert
         return None
 
-    click.echo("vidqa.cli.main")
     if not ctx.invoked_subcommand:
         config_file = Path(__file__).absolute().parent / "config.ini"
         config_data = config.get_data(config_file)
         video_extensions = config_data["video_extensions"].split(",")
-        folder_path = Path(folder_input)
+        if folder_input is None:
+            print(
+                "Select a mode of use\n"
+                + "unique: Process all videos of a folder as a single "
+                + "analysis project.\n"
+                + "batch: From the Input folder, it treats each internal "
+                + "folder as an independent analysis project.\n"
+            )
+            mode = input("Mode (unique / batch): ")
+            folder_path = Path(input("Input folder: "))
+            print(
+                "\nFolder where the analysis report and temporary videos "
+                + "should be stored during the conversion process."
+            )
+            path_folder_convert = Path(input("Report/Temp folder: "))
+        else:
+            folder_path = Path(folder_input)
+            path_folder_convert = get_path_folder_convert(
+                config_data, folder_destination
+            )
 
-        path_folder_convert = get_path_folder_convert(
-            config_data, folder_destination
-        )
         if mode == "unique":
             one_time(folder_path, path_folder_convert, video_extensions)
         else:
@@ -247,7 +264,4 @@ def flags(
 
 
 if __name__ == "__main__":
-    folder_input = input("input: ")
-    mode = input("mode: ")
-    # TODO: Broken
-    # sys.exit(main(None, folder_input, mode, None))  # pragma: no cover
+    sys.exit(main())
