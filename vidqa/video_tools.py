@@ -7,7 +7,6 @@ import os
 def convert_only_audio(
     path_file_video_origin: str, path_file_video_dest: str
 ) -> None:
-
     """Make release for mp4 H264/AAC reencoding only audio
 
     Args:
@@ -15,14 +14,14 @@ def convert_only_audio(
         path_file_video_dest (str): Path of the edited video file
     """
 
-    logging.info(
-        "Convert video extension without reencode: %s", path_file_video_origin
-    )
+    logging.info("Convert only audio: %s", path_file_video_origin)
 
     stringa = (
         f'ffmpeg -v quiet -stats -y -i "{path_file_video_origin}" '
         + "-vcodec copy "
-        + f'-c:a aac "{path_file_video_dest}"'
+        + "-c:a aac "
+        + "-ac 2 "
+        + f'"{path_file_video_dest}"'
     )
     print("\n", stringa)
     os.system(stringa)
@@ -74,7 +73,7 @@ def convert_mp4_aac_get_stringa(
     maxrate = float(flags.get("maxrate", 4))
     bufsize = maxrate * 2
     stringa = (
-        f"ffmpeg -v quiet -stats -y "
+        "ffmpeg -v quiet -stats -y "
         + f'-i "{path_file_video_origin}" '
         + "-c:v libx264 "
         + f"-crf {str(crf)} "
@@ -87,6 +86,7 @@ def convert_mp4_aac_get_stringa(
         + "-tune zerolatency "
         + "-movflags +faststart "
         + "-c:a aac "
+        + "-ac 2 "
         + f'"{path_file_video_dest}"'
     )
     return stringa

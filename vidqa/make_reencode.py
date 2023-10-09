@@ -15,7 +15,6 @@ from .video_tools import (
 
 
 def get_next_video_to_reencode(path_file_report: Path) -> dict[str, str]:
-
     # load dataframe
     try:
         df = pd.read_csv(path_file_report)
@@ -66,10 +65,11 @@ def convert_video_from_dict(
 
     video_codec = dict_metadata["video_codec"]
     audio_codec = dict_metadata["audio_codec"]
+    audio_channels = dict_metadata["audio_channels"]
     format_name = dict_metadata["format_name"]
 
     # Make video conversion
-    if video_codec == "h264" and audio_codec == "aac":
+    if video_codec == "h264" and audio_codec == "aac" and audio_channels <= 2:
         logging.info(
             "Start conversion without reencode: %s-%s-%s | %s",
             audio_codec,
@@ -141,9 +141,8 @@ def update_file_report(
     dict_video_data: dict[str, str],
     path_file_dest: Path,
 ) -> pd.DataFrame:
-
     try:
-        df = pd.read_csv(path_file_report)
+        df = pd.read_csv(path_file_report, dtype={"path_file_converted": str})
     except Exception as e:
         logging.error(f"Can't open file: {path_file_report}")
         logging.error(e)

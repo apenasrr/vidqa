@@ -10,13 +10,11 @@ from .ffprobe_micro import ffprobe
 
 
 def get_video_codec(stream_video: dict) -> str:
-
     video_codec = stream_video["codec_name"]
     return video_codec
 
 
 def get_video_profile(stream_video: dict) -> str:
-
     try:
         video_profile = stream_video["profile"]
     except Exception as e:
@@ -26,13 +24,11 @@ def get_video_profile(stream_video: dict) -> str:
 
 
 def get_video_resolution_height(stream_video: dict) -> str:
-
     video_resolution_height = stream_video["height"]
     return video_resolution_height
 
 
 def get_video_resolution_width(stream_video: dict) -> str:
-
     video_resolution_width = stream_video["width"]
     return video_resolution_width
 
@@ -57,14 +53,12 @@ def get_video_bitrate(dict_inf: dict, stream_video: dict) -> int:
         try:
             video_bitrate = dict_inf["format"]["bit_rate"]
         except Exception as e:
-
             video_bitrate = 0
 
     return int(video_bitrate)
 
 
 def get_is_avc(stream_video: dict) -> int:
-
     try:
         is_avc_str = stream_video["is_avc"]
         if is_avc_str == "true":
@@ -77,13 +71,14 @@ def get_is_avc(stream_video: dict) -> int:
 
 
 def get_audio_codec(stream_audio: dict) -> str:
+    return stream_audio["codec_name"]
 
-    audio_codec = stream_audio["codec_name"]
-    return audio_codec
+
+def get_audio_channels(stream_audio: dict) -> int:
+    return stream_audio.get("channels", 0)
 
 
 def timedelta_to_string(timestamp) -> str:
-
     microsec = timedelta(microseconds=timestamp.microseconds)
     timestamp = timestamp - microsec
     hou, min_full = divmod(timestamp.seconds, 3600)
@@ -112,7 +107,6 @@ def float_seconds_to_string(float_sec: float) -> str:
 
 
 def get_duration_ffprobe(dict_inf: dict) -> dict:
-
     d = {}
     try:
         file = dict_inf["format"]["filename"]
@@ -213,7 +207,7 @@ def get_total_bitrate(dict_inf: dict) -> int:
 
 
 def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
-    """Generates video metadata report in list of dict
+    """Generates video metadata report
 
     Args:
         list_dict_inf_ffprobe (list[dict[str, str]]):
@@ -225,7 +219,6 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
 
     list_dict = []
     for dict_file in list_dict_inf_ffprobe:
-
         path_file = dict_file["path_file"]
         logging.info("parsing: %s", path_file)
         dict_inf_ffprobe = dict_file["metadata"]
@@ -234,6 +227,7 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
         if duration_dict is False:
             logging.error("!File seems corrupt.\n")
             # TODO: export dict as json file
+
             continue
         duration = duration_dict["duration_str"]
         duration_seconds = duration_dict["duration_seconds"]
@@ -248,7 +242,6 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
                 break
 
         if is_video:
-
             video_codec = get_video_codec(stream_video)
             video_profile = get_video_profile(stream_video)
             video_resolution_height = get_video_resolution_height(stream_video)
@@ -278,8 +271,11 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
 
         if has_audio:
             audio_codec = get_audio_codec(stream_audio)
+            audio_channels = get_audio_channels(stream_audio)
+
         else:
             audio_codec = ""
+            audio_channels = 0
 
         # generate dict
         d = {}
@@ -291,6 +287,7 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
         d["video_bitrate"] = video_bitrate
         d["video_codec"] = video_codec
         d["audio_codec"] = audio_codec
+        d["audio_channels"] = audio_channels
         d["is_avc"] = is_avc
         d["video_profile"] = video_profile
         d["video_resolution_height"] = video_resolution_height
@@ -317,13 +314,21 @@ def include_video_to_convert(df: pd.DataFrame) -> pd.DataFrame:
 
     mask_cv_ok = df["video_codec"].isin(["h264"])
     mask_ca_ok = df["audio_codec"].isin(["aac"])
+    mask_ac_ok = df["audio_channels"] <= 2
     mask_isavc = df["is_avc"].isin([1])
     mask_mp4 = df["path_file"].apply(
         lambda x: Path(x).suffix.lower() == ".mp4"
     )
 
     mask_format = df["format_name"] == "mov,mp4,m4a,3gp,3g2,mj2"
-    mask_ok = mask_cv_ok & mask_ca_ok & mask_isavc & mask_mp4 & mask_format
+    mask_ok = (
+        mask_cv_ok
+        & mask_ca_ok
+        & mask_ac_ok
+        & mask_isavc
+        & mask_mp4
+        & mask_format
+    )
     df["to_convert"] = 0
     df.loc[~mask_ok, "to_convert"] = 1
     return df

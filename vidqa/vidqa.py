@@ -109,6 +109,12 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
         )
 
     file_path_converted_destination = get_file_path_converted(path_origin)
+    # if destination exists, rename with suffix _2
+    if file_path_converted_destination.exists():
+        file_path_converted_destination = (
+            file_path_converted_destination.parent
+            / (file_path_converted_destination.stem + "_2.mp4")
+        )
 
     # remove path_origin
     path_origin.unlink()
@@ -119,7 +125,9 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
             path_converted.rename(file_path_converted_destination)
             break
         except Exception as e:
-            logging.error("Move fail. Trying again.: %s", str(path_converted))
+            logging.error(
+                "%s\nMove fail. Trying again.: %s", e, str(path_converted)
+            )
             time.sleep(2)
 
 
