@@ -37,8 +37,29 @@ def logging_config():
 
 
 def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
-    # To input more file video extension:
-    #  https://dotwhat.net/type/video-movie-files
+    """
+    Retrieves a list of file paths with specified video extensions in the given folder.
+
+    Args:
+        folder_path (Path): Path object representing the directory to search for video files.
+        video_extensions (tuple): A tuple of strings representing valid video file extensions.
+
+    Returns:
+        list: A list of Path objects representing the selected video files.
+
+    Raises:
+        ValueError: Raised if there are file paths that exceed the maximum allowed length.
+
+    Example:
+        folder_path = Path("/path/to/your/folder")
+        video_extensions = (".mp4", ".avi", ".mov")
+        video_files = get_list_path_video(folder_path, video_extensions)
+        for video_file in video_files:
+            print(video_file)
+
+    Note:
+        To input more video file extensions, refer to: https://dotwhat.net/type/video-movie-files
+    """
 
     tuple_video_extension_raw = tuple(video_extensions)
     tuple_video_extension = tuple(
@@ -58,7 +79,7 @@ def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
             str(x) for x in dict_all_file_result["errors"]
         ]
         for file_path_too_long in list_file_path_too_long:
-            logging.error(f"File path too long: %s", file_path_too_long)
+            logging.error("File path too long: %s", file_path_too_long)
         raise ValueError("file_path_too_long")
 
     # Select desired videos by extension
@@ -132,6 +153,31 @@ def replace_converted_video(path_origin: Path, path_converted: Path) -> None:
 
 
 def replace_converted_video_all(report_path: Path):
+    """
+    Reads a report file containing information about original and converted
+    video paths.
+    Replaces the original videos with the corresponding converted videos.
+
+    Args:
+        report_path (Path): Path object representing the location of the report
+                            file.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If the report file cannot be opened, the function logs the
+                   error and prompts the user to close the file.
+
+    Example:
+        report_path = Path("/path/to/your/report.csv")
+        replace_converted_video_all(report_path)
+
+    Note:
+        The report file should contain columns 'path_file' for original video
+        paths and 'path_file_converted' for corresponding converted video paths.
+    """
+
     while True:
         try:
             df = pd.read_csv(str(report_path))
@@ -159,7 +205,8 @@ def replace_converted_video_all(report_path: Path):
 
 
 def sanitize_files(folder_path: Path):
-    """Ensures that the path of files are reasonable
+    """Ensures that file path lengths are reasonable.
+    Review in a loop with pauses until the need is satisfied.
 
     Args:
         folder_path (Path): folder path
@@ -218,6 +265,37 @@ def apply_recursive_in_folder(func_: Callable, folder_path: Path):
 def create_video_report(
     report_path: Path, folder_path: Path, video_extensions: tuple
 ):
+    """
+    Creates a video metadata report identifying which ones need conversion and
+    saves it to a CSV file.
+
+    Args:
+        report_path (Path): Path object specifying the location to save the CSV
+                            report.
+        folder_path (Path): Path object representing the directory to search
+                            for video files.
+        video_extensions (tuple): A tuple of strings representing valid video
+                                  file extensions.
+
+    Returns:
+        None
+
+    Example:
+        report_path = Path("/path/to/save/report.csv")
+        folder_path = Path("/path/to/your/folder")
+        video_extensions = (".mp4", ".avi", ".mov")
+        create_video_report(report_path, folder_path, video_extensions)
+
+    Note:
+        - The function sanitizes file and folder names within the specified
+          directory.
+        - Extracts video metadata from valid video files with extensions
+          specified in `video_extensions`.
+        - Generates a CSV report containing video metadata and saves it to the
+          specified `report_path`.
+        - Videos to be converted are identified and included in the report.
+    """
+
     list_folders_path_approved = sanitize_files(folder_path)
 
     if len(list_folders_path_approved) == 0:
@@ -323,7 +401,7 @@ def get_folder_destination(
         FileNotFoundError: If the source folder specified in `folder_path` does
             not exist.
     """
-    # TODO: test this funcion
+
     if not folder_path.exists() or not folder_path.is_dir():
         raise FileNotFoundError(
             f"{folder_path}\nThe source folder does not exist."
@@ -352,7 +430,8 @@ def vidqa(
     flags: dict = None,
 ):
     """Warning if file path or file name is greater than they should.
-    Ensure that video profile is format mp4, v/a codec H264/aac.
+    Ensure that video profile is format mp4, v/a codecs H264/aac,
+    audio channels <=2.
 
     Args:
         report_path (str): file path of report metadata
