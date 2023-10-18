@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from pathlib import Path
@@ -268,6 +269,8 @@ def create_video_report(
     """
     Creates a video metadata report identifying which ones need conversion and
     saves it to a CSV file.
+    Also dumps all video metadata into a single JSON file located in the same
+    folder as the report.
 
     Args:
         report_path (Path): Path object specifying the location to save the CSV
@@ -287,13 +290,15 @@ def create_video_report(
         create_video_report(report_path, folder_path, video_extensions)
 
     Note:
-        - The function sanitizes file and folder names within the specified
-          directory.
+        - Sanitizes file and folder names within the specified
+          directory to be UTF-8 compatible.
         - Extracts video metadata from valid video files with extensions
           specified in `video_extensions`.
+        - Dumps all video metadata into a single JSON file located in the
+          same folder as the report. Named {report_name}_metadata.json
         - Generates a CSV report containing video metadata and saves it to the
           specified `report_path`.
-        - Videos to be converted are identified and included in the report.
+        - Videos to be converted are identified in the report.
     """
 
     list_folders_path_approved = sanitize_files(folder_path)
@@ -308,8 +313,21 @@ def create_video_report(
     if len(list_path_video) == 0:
         logging.info("There are no video files.")
         return
-    list_dict_report_video_metadata = (
-        video_report.get_list_dict_report_video_metadata(list_path_video)
+
+    list_dict_inf_ffprobe = video_report.get_list_dict_inf_ffprobe(
+        list_path_video
+    )
+
+    # save metadata json file
+    metadata_json_path = report_path.parent / (
+        report_path.stem + "_metadata.json"
+    )
+    save_list_dict_as_json_file(
+        list_dict=list_dict_inf_ffprobe, file_path=metadata_json_path
+    )
+    # format list_dict to report needs
+    list_dict_report_video_metadata = video_report.format_video_metadata(
+        list_dict_inf_ffprobe
     )
 
     # generates CSV metadata report
@@ -321,6 +339,18 @@ def create_video_report(
     )
 
     df_video_metadata.to_csv(report_path, index=False)
+
+
+def save_list_dict_as_json_file(list_dict: list, file_path: Path):
+    """Save list_dict as json file
+
+    Args:
+        list_dict (list): list of dict
+        file_path (Path): path file
+    """
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(list_dict, f, indent=4)
 
 
 def check_report_integrity(report_path: Path) -> bool:

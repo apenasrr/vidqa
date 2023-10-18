@@ -15,11 +15,9 @@ def get_video_codec(stream_video: dict) -> str:
 
 
 def get_video_profile(stream_video: dict) -> str:
-    try:
-        video_profile = stream_video["profile"]
-    except Exception as e:
-        logging.info("Not have video_profile: %s", e)
-        video_profile = ""
+    video_profile = stream_video.get("profile", "")
+    if video_profile == "":
+        logging.info("Not have video_profile")
     return video_profile
 
 
@@ -135,23 +133,6 @@ def get_duration_ffprobe(dict_inf: dict) -> dict:
     return d
 
 
-def get_list_dict_report_video_metadata(list_path_file: list[Path]):
-    """Generates video metadata report in list of dict
-
-    Args:
-        list_path_file (list): Video file lists
-
-    Returns:
-        list[dict]: Video Metadata
-    """
-
-    list_dict_inf_ffprobe = get_list_dict_inf_ffprobe(list_path_file)
-    list_dict_report_video_metadata = format_video_metadata(
-        list_dict_inf_ffprobe
-    )
-    return list_dict_report_video_metadata
-
-
 def get_list_dict_inf_ffprobe(list_path_file: list[str]):
     """Returns metadata from a video file lists
 
@@ -165,7 +146,7 @@ def get_list_dict_inf_ffprobe(list_path_file: list[str]):
     list_dict = []
     for file_selected in list_path_file:
         d = {}
-        d["path_file"] = file_selected
+        d["path_file"] = str(file_selected)
         logging.info("run ffprobe: %s", file_selected)
         # generate raw metadata
         dict_inf_ffprobe = ffprobe(file_selected).get_output_as_dict()
