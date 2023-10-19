@@ -7,9 +7,7 @@ from typing import Union
 
 import click
 
-from . import config, sanitize_files, vidqa
-
-# import debugpy
+from . import config, sanitize_files, show_corrupt_videos, vidqa
 
 
 def one_time(
@@ -38,6 +36,7 @@ def one_time(
         path_folder_convert=path_folder_convert,
         video_extensions=video_extensions,
     )
+    show_corrupt_videos(folder_path, path_folder_convert)
 
 
 def batch_mode(
@@ -60,7 +59,13 @@ def batch_mode(
     if not folder_path.exists():
         raise FileNotFoundError(folder_path)
 
-    sanitize_files(folder_path)
+    config_file = Path(__file__).absolute().parent / "config.ini"
+    config_data = config.get_data(config_file)
+    max_path = int(config_data.get("max_path", 260))
+    max_name = int(config_data.get("max_name", 150))
+    sanitize_files(
+        folder_path=folder_path, max_path=max_path, max_name=max_name
+    )
 
     list_folder_path = [
         path for path in folder_path.iterdir() if path.is_dir()
@@ -72,6 +77,8 @@ def batch_mode(
             path_folder_convert=path_folder_convert,
             video_extensions=video_extensions,
         )
+    for folder_path in list_folder_path:
+        show_corrupt_videos(folder_path, path_folder_convert)
 
 
 @click.group(invoke_without_command=True)
@@ -201,11 +208,27 @@ def main(
     type=click.Choice(["0", "1"]),
     help="set default_destination",
 )
+@click.option(
+    "-mp",
+    "--max_path",
+    required=False,
+    type=click.INT,
+    help="set maximum file path length",
+)
+@click.option(
+    "-mn",
+    "--max_name",
+    required=False,
+    type=click.INT,
+    help="set maximum file name length",
+)
 def flags(
     crf: Union[float, None],
     maxrate: Union[float, None],
     folder_dest: Union[str, None],
     default_dest: Union[str, None],
+    max_path: Union[int, None],
+    max_name: Union[int, None],
 ):
     """Update Flags from Config.ini file
 
@@ -217,6 +240,8 @@ def flags(
             file.
         default_dest (Union[str, None]): Default folder to save the output
             file. If zero, the parent origin folder will be used.
+        max_path (Union[int, None]): Maximum file path length.
+        max_name (Union[int, None]): Maximum file name length.
     Raises:
         ValueError: If the given CRF value is not a number
             or not between 0 and 51
@@ -227,10 +252,10 @@ def flags(
     if crf is not None:
         try:
             crf = float(crf)
-            if not 0 <= crf <= 51:
-                raise ValueError("The CRF value should be between 0 and 51.")
         except ValueError as e:
             raise ValueError("The CRF value should be a number.") from e
+        if not 0 <= crf <= 51:
+            raise ValueError("The CRF value should be between 0 and 51.")
 
         config.set_data(config_file, variable="crf", value=str(crf))
         click.echo(f"Flag crf set to: {crf}")
@@ -256,6 +281,12 @@ def flags(
             value=str(default_dest),
         )
         click.echo(f"Flag default_destination set to: {default_dest}")
+    elif max_path:
+        config.set_data(config_file, variable="max_path", value=str(max_path))
+        click.echo(f"Flag max_path set to: {max_path}")
+    elif max_name:
+        config.set_data(config_file, variable="max_name", value=str(max_path))
+        click.echo(f"Flag max_name set to: {max_name}")
     else:
         click.echo("--Actual flags--")
         config_data = config.get_data(config_file)

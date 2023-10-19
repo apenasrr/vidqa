@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import shutil
 import time
 from pathlib import Path
 from typing import Callable, Union
@@ -39,17 +41,21 @@ def logging_config():
 
 def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
     """
-    Retrieves a list of file paths with specified video extensions in the given folder.
+    Retrieves a list of file paths with specified video extensions in the given
+    folder.
 
     Args:
-        folder_path (Path): Path object representing the directory to search for video files.
-        video_extensions (tuple): A tuple of strings representing valid video file extensions.
+        folder_path (Path): Path object representing the directory to search
+                            for video files.
+        video_extensions (tuple): A tuple of strings representing valid video
+                                  file extensions.
 
     Returns:
         list: A list of Path objects representing the selected video files.
 
     Raises:
-        ValueError: Raised if there are file paths that exceed the maximum allowed length.
+        ValueError: Raised if there are file paths that exceed the maximum
+                    allowed length.
 
     Example:
         folder_path = Path("/path/to/your/folder")
@@ -59,7 +65,8 @@ def get_list_path_video(folder_path: Path, video_extensions: tuple) -> list:
             print(video_file)
 
     Note:
-        To input more video file extensions, refer to: https://dotwhat.net/type/video-movie-files
+        To input more video file extensions, refer to:
+        https://dotwhat.net/type/video-movie-files
     """
 
     tuple_video_extension_raw = tuple(video_extensions)
@@ -205,7 +212,7 @@ def replace_converted_video_all(report_path: Path):
         replace_converted_video(Path(path_origin), Path(path_converted))
 
 
-def sanitize_files(folder_path: Path):
+def sanitize_files(folder_path: Path, max_path=250, max_name=150):
     """Ensures that file path lengths are reasonable.
     Review in a loop with pauses until the need is satisfied.
 
@@ -219,7 +226,7 @@ def sanitize_files(folder_path: Path):
             list_folders_path_approved,
             list_folders_path_rejected,
         ) = test_folders_has_path_too_long(
-            [folder_path], max_path=250, max_name=150
+            [folder_path], max_path=max_path, max_name=max_name
         )
 
         if len(list_folders_path_rejected) > 0:
@@ -264,8 +271,8 @@ def apply_recursive_in_folder(func_: Callable, folder_path: Path):
 
 
 def create_video_report(
-    report_path: Path, folder_path: Path, video_extensions: tuple
-):
+    report_path: Path, folder_path: Path, video_extensions: tuple, flags: dict
+) -> list:
     """
     Creates a video metadata report identifying which ones need conversion and
     saves it to a CSV file.
@@ -301,7 +308,11 @@ def create_video_report(
         - Videos to be converted are identified in the report.
     """
 
-    list_folders_path_approved = sanitize_files(folder_path)
+    max_path = flags.get("max_path", 260)
+    max_name = flags.get("max_name", 150)
+    list_folders_path_approved = sanitize_files(
+        folder_path, max_path=max_path, max_name=max_name
+    )
 
     if len(list_folders_path_approved) == 0:
         return []
@@ -314,9 +325,9 @@ def create_video_report(
         logging.info("There are no video files.")
         return
 
-    list_dict_inf_ffprobe = video_report.get_list_dict_inf_ffprobe(
-        list_path_video
-    )
+    inf_ffprobe = video_report.get_inf_ffprobe(list_path_video)
+    list_dict_inf_ffprobe = inf_ffprobe.get("metadata", "")
+    list_corrupt_videos = inf_ffprobe.get("corrupt", "")
 
     # save metadata json file
     metadata_json_path = report_path.parent / (
@@ -339,6 +350,7 @@ def create_video_report(
     )
 
     df_video_metadata.to_csv(report_path, index=False)
+    return list_corrupt_videos
 
 
 def save_list_dict_as_json_file(list_dict: list, file_path: Path):
@@ -480,7 +492,18 @@ def vidqa(
     if flags is None:
         crf = float(config_data.get("crf", 18))
         maxrate = float(config_data.get("maxrate", 2))
-        flags = {"crf": crf, "maxrate": maxrate}
+        max_path = int(config_data.get("max_path", 240))
+        max_name = int(config_data.get("max_name", 150))
+        corrupt_del = int(config_data.get("corrupt_del", 0))
+        corrupt_bkp = int(config_data.get("corrupt_bkp", 1))
+        flags = {
+            "crf": crf,
+            "maxrate": maxrate,
+            "corrupt_del": corrupt_del,
+            "corrupt_bkp": corrupt_bkp,
+            "max_path": max_path,
+            "max_name": max_name,
+        }
 
     folder_destination = get_folder_destination(
         folder_path, path_folder_convert
@@ -495,10 +518,113 @@ def vidqa(
         integrity_check_passed = False
 
     if not integrity_check_passed:
-        create_video_report(report_path, folder_path, video_extensions)
+        list_corrupt_videos = create_video_report(
+            report_path, folder_path, video_extensions, flags
+        )
+        # save list_corrupt_videos to report_erros_path and delete or backup them
+        report_erros_path = Path(folder_destination) / (
+            folder_path.name + "_errors.csv"
+        )
+        corrupt_handler(list_corrupt_videos, report_erros_path, flags)
 
     make_reencode.make_reencode(report_path, folder_destination, flags)
     replace_converted_video_all(report_path)
+    return report_path
+
+
+def show_corrupt_videos(folder_path, path_folder_convert):
+    """
+    Show a consolidated list of corrupt video files from multiple project
+    reports.
+
+    Args:
+        list_report_path (list): List of Path objects representing paths to
+                                 project report files.
+
+    Example:
+        list_report_path = [Path("/path/to/report1.csv"),
+                            Path("/path/to/report2.csv")]
+        show_corrupt_videos(list_report_path)
+
+    Note:
+        - Infers the path of the corrupt video report from the folder where the
+          project_report is.
+        - Reads each corrupt video report file, extracts the list of corrupt
+          videos, and consolidates them.
+        - Show the paths of all corrupt videos found across the specified
+          reports.
+    """
+
+    folder_destination = get_folder_destination(
+        folder_path, path_folder_convert
+    )
+    report_path = Path(folder_destination) / (folder_path.name + ".csv")
+
+    report_erros_path = report_path.parent / (report_path.stem + "_errors.csv")
+    if report_erros_path.exists():
+        list_corrupt_videos = pd.read_csv(report_erros_path)[
+            "path_file"
+        ].to_list()
+        print(f"\nCorrupt videos: {folder_path.name}")
+        for corrupt_video in list_corrupt_videos:
+            print(f"- {str(corrupt_video)}")
+
+
+def corrupt_handler(
+    list_corrupt_videos: list, report_erros_path: Path, flags: dict
+):
+    """
+    Handles corrupted video files by saving their paths to a CSV report and
+    optionally creating backups or deleting them.
+
+    Args:
+        list_corrupt_videos (list): A list of file paths representing corrupted
+                                    video files.
+        report_errors_path (Path): Path object specifying the location to save
+                                   the CSV report.
+        flags (dict): A dictionary containing options for handling corrupted
+                      files:
+                      - 'corrupt_bkp' (int): 1 to create backups, 0 to disable.
+                      - 'corrupt_del' (int): 1 to delete corrupted files, 0 to
+                        disable.
+
+    Returns:
+        None
+
+    Example:
+        list_corrupt_videos = ["path/to/corrupted_video1.mp4",
+                               "path/to/corrupted_video2.avi"]
+        report_errors_path = Path("/path/to/save/corruption_report.csv")
+        flags = {'corrupt_bkp': 1, 'corrupt_del': 1}
+        corrupt_handler(list_corrupt_videos, report_errors_path, flags)
+    """
+
+    if len(list_corrupt_videos) == 0:
+        return
+
+    list_str_corrupt_videos = [str(x) for x in list_corrupt_videos]
+    df = pd.DataFrame({"path_file": list_str_corrupt_videos})
+    df.to_csv(report_erros_path, index=False, encoding="utf-8")
+
+    # Copy videos corrupted to folder where is the report_erros_path
+    if flags.get("corrupt_bkp", 1) == 1:
+        for corrupt_video in list_corrupt_videos:
+            hash = hashlib.md5(
+                str(corrupt_video.parent).encode("utf-8")
+            ).hexdigest()[:5]
+            corrupt_video_backup_path = report_erros_path.parent / (
+                Path(corrupt_video).stem
+                + f"_{hash}"
+                + Path(corrupt_video).suffix
+            )
+            shutil.copy(corrupt_video, corrupt_video_backup_path)
+            logging.info("corrupt video backup: %s", corrupt_video)
+
+    # Delete videos corrupted
+    print(flags["corrupt_del"])
+    if flags.get("corrupt_del", 0) == 1:
+        for corrupt_video in list_corrupt_videos:
+            Path(corrupt_video).unlink()
 
 
 def main():

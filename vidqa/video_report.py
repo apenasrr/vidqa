@@ -110,10 +110,11 @@ def get_duration_ffprobe(dict_inf: dict) -> dict:
         file = dict_inf["format"]["filename"]
     except Exception as e:
         print("")
-        logging.error("%s", dict_inf)
+        logging.error("Video without format-filename metadata:\n%s", dict_inf)
         print("")
         logging.error(e)
         return False
+
     try:
         duration_unformat = dict_inf["format"]["duration"]
         duration = float_seconds_to_string(float_sec=float(duration_unformat))
@@ -127,22 +128,39 @@ def get_duration_ffprobe(dict_inf: dict) -> dict:
             + "necessary",
             file,
         )
-        d["duration_str"] = ""
-        d["duration_seconds"] = ""
-
+        return False
     return d
 
 
-def get_list_dict_inf_ffprobe(list_path_file: list[str]):
-    """Returns metadata from a video file lists
+def get_inf_ffprobe(list_path_file: list[Path]) -> dict:
+    """
+    Extracts FFprobe metadata for a list of video files.
 
     Args:
-        list_path_file (list): Video file lists
+        list_path_file (list[Path]): A list of file paths for which FFprobe metadata
+        needs to be extracted.
 
     Returns:
-        list[dict]: Video Metadata
+        dict: A dictionary containing two keys - 'metadata' and 'corrupt'.
+              - 'metadata': A list of dictionaries, each containing 'path_file'
+                (file path) and 'metadata' (video metadata).
+              - 'corrupt': A list of file paths for likely corrupted or
+                unsupported video files.
+
+    Example:
+        list_path_file = ["path/to/video1.mp4", "path/to/video2.avi"]
+        result = get_list_dict_inf_ffprobe(list_path_file)
+        metadata_list = result['metadata']
+        corrupt_files = result['corrupt']
+
+    Note:
+        - Is considered corrupted and added to the 'corrupt' list when:
+          - If FFprobe fails to extract metadata for a file or
+          - If metadata does not contain format-filename key or
+          - If metadata does not contain format-duration key.
     """
 
+    list_path_corrupt = []
     list_dict = []
     for file_selected in list_path_file:
         d = {}
@@ -150,15 +168,40 @@ def get_list_dict_inf_ffprobe(list_path_file: list[str]):
         logging.info("run ffprobe: %s", file_selected)
         # generate raw metadata
         dict_inf_ffprobe = ffprobe(file_selected).get_output_as_dict()
-        if len(dict_inf_ffprobe) == 0:  # dict vazio
+
+        # corrupted for lack of metadata
+        if len(dict_inf_ffprobe) == 0:
             logging.error(
                 "File likely corrupted-No metadata:\n" + "_" * 25 + "%s\n",
                 file_selected,
             )
+            list_path_corrupt.append(file_selected)
             continue
+
+        # corrupt by lack of format-filename metadata
+        try:
+            _ = dict_inf_ffprobe["format"]["filename"]
+        except Exception as e:
+            list_dict.append(d)
+            list_path_corrupt.append(file_selected)
+            continue
+
+        # corrupt by lack of duration metadata
+        try:
+            _ = dict_inf_ffprobe["format"]["duration"]
+        except Exception as e:
+            logging.error(
+                "%s\nVideo without format-filename metadata:\n%s",
+                e,
+                dict_inf_ffprobe,
+            )
+            list_dict.append(d)
+            list_path_corrupt.append(file_selected)
+            continue
+
         d["metadata"] = dict_inf_ffprobe
         list_dict.append(d)
-    return list_dict
+    return {"metadata": list_dict, "corrupt": list_path_corrupt}
 
 
 def get_total_bitrate(dict_inf: dict) -> int:
@@ -207,8 +250,6 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
         duration_dict = get_duration_ffprobe(dict_inf=dict_inf_ffprobe)
         if duration_dict is False:
             logging.error("!File seems corrupt.\n")
-            # TODO: export dict as json file
-
             continue
         duration = duration_dict["duration_str"]
         duration_seconds = duration_dict["duration_seconds"]
