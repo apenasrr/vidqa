@@ -420,23 +420,23 @@ def check_report_integrity(report_path: Path) -> bool:
                 pass
 
 
-def get_folder_destination(
+def get_folder_log(
     folder_path: Path, path_folder_convert: Path = None
 ) -> Path:
     """
-    Returns the destination folder path for storing converted videos
+    Returns the log  folder path for storing converted videos
     and metadata report.
 
     Args:
         folder_path (Path): Path to the source folder containing files to be
             converted.
-        path_folder_convert (Path, optional): Path to the destination folder
+        path_folder_convert (Path, optional): Path to the log folder
             for storing converted files. If not specified, converted files will
             be stored in the parent directory of the source folder with the
             prefix "vidqa_".
 
     Returns:
-        Path: Full path to the destination folder where the converted files
+        Path: Full path to the log folder where the converted files
             will be stored.
 
     Raises:
@@ -450,18 +450,18 @@ def get_folder_destination(
         )
 
     if not path_folder_convert:
-        folder_destination = (
+        folder_log = (
             Path(folder_path).absolute().parents[0]
             / f"vidqa_{folder_path.name}"
         )
     else:
         if not path_folder_convert.exists():
             path_folder_convert.mkdir()
-        folder_destination = Path(path_folder_convert) / (
+        folder_log = Path(path_folder_convert) / (
             "vidqa_" + Path(folder_path).name
         )
-    folder_destination.mkdir(exist_ok=True)
-    return folder_destination
+    folder_log.mkdir(exist_ok=True)
+    return folder_log
 
 
 def vidqa(
@@ -469,18 +469,20 @@ def vidqa(
     report_path: Union[Path, None] = None,
     path_folder_convert: Union[Path, None] = None,
     video_extensions: tuple = None,
-    flags: dict = None,
+    flags: Union[dict, None] = None,
 ):
     """Warning if file path or file name is greater than they should.
     Ensure that video profile is format mp4, v/a codecs H264/aac,
     audio channels <=2.
 
     Args:
-        report_path (str): file path of report metadata
-        path_dir (str): input folder
-        video_extensions (tuple): video file extension to be analyzed
-        path_folder_convert (str): temp folder to receive converted videos
-        flags (dict, optional): video conversion flags. Defaults to None.
+        folder_path (Path): Path object representing project location.
+        report_path (Optional[Path]): Path object representing report metadata.
+        path_folder_convert (Optional[Path]): Path object representing the
+            temporary folder to receive converted videos.
+        video_extensions (Optional[Tuple[str, ...]]): Tuple of video file
+            extensions to be analyzed.
+        flags (Optional[Dict[str, Any]]): Dictionary of flags.
     """
 
     config_file = Path(__file__).absolute().parent / "config.ini"
@@ -505,12 +507,10 @@ def vidqa(
             "max_name": max_name,
         }
 
-    folder_destination = get_folder_destination(
-        folder_path, path_folder_convert
-    )
+    folder_log = get_folder_log(folder_path, path_folder_convert)
 
     if report_path is None:
-        report_path = Path(folder_destination) / (folder_path.name + ".csv")
+        report_path = Path(folder_log) / (folder_path.name + ".csv")
 
     if report_path.exists():
         integrity_check_passed = check_report_integrity(report_path)
@@ -521,30 +521,34 @@ def vidqa(
         list_corrupt_videos = create_video_report(
             report_path, folder_path, video_extensions, flags
         )
-        # save list_corrupt_videos to report_erros_path and delete or backup them
-        report_erros_path = Path(folder_destination) / (
+        # save list_corrupt_videos to report_erros_path and delete
+        # or backup them
+        report_erros_path = Path(folder_log) / (
             folder_path.name + "_errors.csv"
         )
         corrupt_handler(list_corrupt_videos, report_erros_path, flags)
 
-    make_reencode.make_reencode(report_path, folder_destination, flags)
+    make_reencode.make_reencode(report_path, folder_log, flags)
     replace_converted_video_all(report_path)
     return report_path
 
 
-def show_corrupt_videos(folder_path, path_folder_convert):
+def show_corrupt_videos(
+    folder_path: Path, path_folder_convert: Union[Path, None]
+):
     """
     Show a consolidated list of corrupt video files from multiple project
     reports.
 
     Args:
-        list_report_path (list): List of Path objects representing paths to
-                                 project report files.
+        folder_path (Path): Path objects representing project location.
+        path_folder_convert (Path | None): Path object representing the location
+                                           of converted temp folder.
 
     Example:
-        list_report_path = [Path("/path/to/report1.csv"),
-                            Path("/path/to/report2.csv")]
-        show_corrupt_videos(list_report_path)
+        folder_path = Path("/path/to/mytempproject)
+        path_folder_convert = Path("/path/temp/vidqa_mytempproject/")
+        show_corrupt_videos(folder_path, path_folder_convert)
 
     Note:
         - Infers the path of the corrupt video report from the folder where the
@@ -555,12 +559,16 @@ def show_corrupt_videos(folder_path, path_folder_convert):
           reports.
     """
 
-    folder_destination = get_folder_destination(
-        folder_path, path_folder_convert
-    )
-    report_path = Path(folder_destination) / (folder_path.name + ".csv")
+    if not path_folder_convert:
+        folder_log = (
+            folder_path.absolute().parents[0] / f"vidqa_{folder_path.name}"
+        )
+    else:
+        folder_log = path_folder_convert / (f"vidqa_{folder_path.name}")
+    if not folder_log.exists():
+        raise FileNotFoundError("folder_log not found")
 
-    report_erros_path = report_path.parent / (report_path.stem + "_errors.csv")
+    report_erros_path = folder_log / (folder_path.name + "_errors.csv")
     if report_erros_path.exists():
         list_corrupt_videos = pd.read_csv(report_erros_path)[
             "path_file"
@@ -625,6 +633,71 @@ def corrupt_handler(
     if flags.get("corrupt_del", 0) == 1:
         for corrupt_video in list_corrupt_videos:
             Path(corrupt_video).unlink()
+
+
+def move_project(
+    folder_path: Path,
+    move_done: Union[Path, None] = None,
+    folder_destination: Union[Path, None] = None,
+):
+    """
+    Moves a project folder to a specified destination based on configuration
+    settings.
+
+    Args:
+        folder_path (Path): Path object representing the source project folder.
+        move_done (int, optional): Flag indicating if the move operation is
+            allowed (1 for allowed, 0 for disallowed).
+        folder_destination (str, optional): Path to the destination folder
+            where the project should be moved.
+
+    Raises:
+        FileNotFoundError: If the configuration file does not exist.
+
+    Returns:
+        None
+
+    Notes:
+        The `config_data` dictionary is expected to contain the following keys:
+        - 'move_done' (int): Flag indicating if the move operation is allowed
+            (1 for allowed, 0 for disallowed).
+        - 'folder_destination' (str): Path to the destination folder where the
+            project should be moved.
+    """
+
+    config_file = Path(__file__).absolute().parent / "config.ini"
+
+    config_data = config.get_data(config_file)
+    if move_done is None:
+        move_done = int(config_data.get("move_done", 0))
+    if move_done == 1:
+        if folder_destination is None:
+            folder_destination = Path(
+                config_data.get("folder_destination", "")
+            )
+        if folder_destination.exists():
+            folder_to = Path(folder_destination) / folder_path.name
+            if not folder_to.exists():
+                while True:
+                    try:
+                        folder_path.rename(folder_to)
+                        break
+                    except Exception as e:
+                        logging.error("Fail to move: %s", e)
+                        logging.error("Retrying in 2 seconds...")
+                        time.sleep(2)
+                logging.info("Project moved to: %s", str(folder_to))
+            else:
+                logging.info(
+                    "Fail to move. Project already exists in: %s",
+                    str(folder_to),
+                )
+        else:
+            logging.info(
+                "Fail to move. Folder destination that was set in "
+                + "flags did not exist: %s",
+                str(folder_destination),
+            )
 
 
 def main():
