@@ -182,6 +182,7 @@ def get_inf_ffprobe(list_path_file: list[Path]) -> dict:
         try:
             _ = dict_inf_ffprobe["format"]["filename"]
         except Exception as e:
+            d["metadata"] = dict_inf_ffprobe
             list_dict.append(d)
             list_path_corrupt.append(file_selected)
             continue
@@ -195,6 +196,7 @@ def get_inf_ffprobe(list_path_file: list[Path]) -> dict:
                 e,
                 dict_inf_ffprobe,
             )
+            d["metadata"] = dict_inf_ffprobe
             list_dict.append(d)
             list_path_corrupt.append(file_selected)
             continue
