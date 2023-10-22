@@ -79,7 +79,7 @@ def convert_mp4_aac_get_stringa(
         + f"-crf {str(crf)} "
         + f"-maxrate {str(maxrate)}M "
         + f"-bufsize {str(bufsize)}M "
-        + "-preset ultrafast "
+        + "-preset faster "
         + "-flags +global_header "
         + "-pix_fmt yuv420p "
         + "-profile:v baseline "
