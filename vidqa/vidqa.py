@@ -344,10 +344,9 @@ def create_video_report(
     # generates CSV metadata report
     df_video_metadata = pd.DataFrame(list_dict_report_video_metadata)
 
-    # set which videos need conversion
-    df_video_metadata = video_report.include_video_to_convert(
-        df_video_metadata
-    )
+    # set column type_conversion
+    # Values: 1_not_needed,2_container,3_only_audio,4_only_video,5_total_conv
+    df_video_metadata = video_report.include_type_conversion(df_video_metadata)
 
     df_video_metadata.to_csv(report_path, index=False)
     return list_corrupt_videos

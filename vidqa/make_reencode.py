@@ -8,22 +8,40 @@ from pathlib import Path
 import pandas as pd
 
 from .video_tools import (
-    convert_mp4_aac,
-    convert_mp4_wo_reencode,
+    convert_audio_video,
+    convert_container,
     convert_only_audio,
+    convert_only_video,
 )
 
 
-def get_next_video_to_reencode(path_file_report: Path) -> dict[str, str]:
+def get_next_video_to_reencode(file_path_report: Path) -> dict[str, str]:
+    """
+    Retrieves the next video to be reencoded based on the provided report file.
+
+    Args:
+        file_path_report (Path): Path object representing the file path of the
+            report.
+
+    Returns:
+        Union[Dict[str, str], bool]: A dictionary containing the information of
+            the next video to be reencoded
+        if available, or False if there are no videos to reencode.
+
+    Raises:
+        FileNotFoundError: If the specified report file does not exist.
+        Exception: If there is an issue while reading the report file.
+    """
+
     # load dataframe
     try:
-        df = pd.read_csv(path_file_report)
+        df = pd.read_csv(file_path_report)
     except Exception as e:
-        logging.error(f"Can't open file: {str(path_file_report)}")
+        logging.error(f"Can't open file: {str(file_path_report)}")
         logging.error(e)
 
     # create mask to reencode
-    mask_df_to_convert = ~df["to_convert"].isin([0])
+    mask_df_to_convert = ~df["type_conversion"].isin(["1_not_needed"])
     mask_df_convert_not_done = df["conversion_done"].isin([0])
     mask_df_to_convert = mask_df_to_convert & mask_df_convert_not_done
 
@@ -61,41 +79,45 @@ def convert_video_from_dict(
         (boolean): False if error.
     """
 
-    path_file_origin = dict_metadata["path_file"]
-
     video_codec = dict_metadata["video_codec"]
     audio_codec = dict_metadata["audio_codec"]
     audio_channels = dict_metadata["audio_channels"]
     format_name = dict_metadata["format_name"]
 
-    # Make video conversion
-    if video_codec == "h264" and audio_codec == "aac" and audio_channels <= 2:
+    path_file_origin = dict_metadata["path_file"]
+
+    dict_func_conversion = {
+        "2_container": {"func": convert_container, "name": "container"},
+        "3_only_audio": {"func": convert_only_audio, "name": "only audio"},
+        "4_only_video": {"func": convert_only_video, "name": "only video"},
+        "5_total_conv": {
+            "func": convert_audio_video,
+            "name": "both audio and video",
+        },
+    }
+
+    type_conversion = dict_metadata["type_conversion"]
+    if type_conversion in dict_func_conversion:
+        dict_optimal_conversion = dict_func_conversion[type_conversion]
+        optimal_conversion_name = dict_optimal_conversion["name"]
         logging.info(
-            "Start conversion without reencode: %s-%s-%s | %s",
+            "Start conversion '%s': %s-%s ac-%s-%s",
+            optimal_conversion_name,
             audio_codec,
+            audio_channels,
             video_codec,
             format_name,
-            path_file_origin,
         )
-        convert_mp4_wo_reencode(path_file_origin, path_file_dest)
-    elif video_codec == "h264":
-        logging.info(
-            "Start conversion only audio: %s-%s-%s | %s",
-            audio_codec,
-            video_codec,
-            format_name,
-            path_file_origin,
-        )
-        convert_only_audio(path_file_origin, path_file_dest)
+        optimal_conversion_func = dict_optimal_conversion["func"]
+        optimal_conversion_func(path_file_origin, path_file_dest, flags)
+        print("")
     else:
-        logging.info(
-            "Start reencode: %s-%s-%s | %s",
-            audio_codec,
-            video_codec,
-            format_name,
+        logging.error(
+            "type_conversion not recognized: %s",
             path_file_origin,
         )
-        convert_mp4_aac(path_file_origin, path_file_dest, flags)
+        logging.info("File: %s", path_file_origin)
+        sys.exit()
 
 
 def get_file_name_dest(
@@ -183,12 +205,13 @@ def make_reencode(
     flags: dict = {"crf": 18, "maxrate": 4},
 ) -> pd.DataFrame:
     """Converts all videos of the report.
-        Required columns: file_path_folder, file_name
+        Required columns: file_path_folder, file_name, type_conversion
 
     Args:
         path_file_report (Path): report path. csv.
         path_folder_encoded (Path): converted videos folder path
-        flags (dict, optional): video conversion flags. Defaults to {'crf': 18, 'maxrate': 4}.
+        flags (dict, optional): video conversion flags. Defaults to
+            {'crf': 18, 'maxrate': 4}.
 
     Returns:
         pd.DataFrame: updated report dataframe

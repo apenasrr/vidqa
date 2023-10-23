@@ -324,17 +324,45 @@ def format_video_metadata(list_dict_inf_ffprobe: list[dict[str, str]]):
     return list_dict
 
 
-def include_video_to_convert(df: pd.DataFrame) -> pd.DataFrame:
-    """Define which videos should be converted.
+def include_type_conversion(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Determines the required type of conversion for each video in the DataFrame
+    and creates a 'type_conversion' column accordingly.
+
+    Conversion Types:
+    - '1_not_needed': No conversion needed.
+    - '2_container': Container conversion needed.
+    - '3_only_audio': Audio conversion needed.
+    - '4_only_video': Video conversion needed.
+    - '5_total_conv': Audio and video conversion needed.
 
     Args:
-        df (pd.DataFrame): video_details dataframe.
-            Required columns: 'video_codec', 'audio_codec', 'is_avc',
-                              'format_name'
+        df (pd.DataFrame): Input DataFrame containing video information.
+            It must have the following columns:
+            - 'video_codec': Video codec information.
+            - 'audio_codec': Audio codec information.
+            - 'audio_channels': Number of audio channels.
+            - 'is_avc': AVC (Advanced Video Coding) flag.
+            - 'path_file': File path of the video file.
+            - 'format_name': Video file format name.
+
     Returns:
-        pd.DataFrame:
-            Original dataframe with new column 'to_convert'
+        pd.DataFrame: DataFrame with an added 'type_conversion' column
+            indicating the required conversion type.
     """
+
+    # check if Dataframe has the necessary columns
+    required_columns = [
+        "video_codec",
+        "audio_codec",
+        "audio_channels",
+        "is_avc",
+        "path_file",
+        "format_name",
+    ]
+    for column in required_columns:
+        if column not in df.columns:
+            raise ValueError(f"Column '{column}' not found in DataFrame.")
 
     mask_cv_ok = df["video_codec"].isin(["h264"])
     mask_ca_ok = df["audio_codec"].isin(["aac"])
@@ -343,16 +371,26 @@ def include_video_to_convert(df: pd.DataFrame) -> pd.DataFrame:
     mask_mp4 = df["path_file"].apply(
         lambda x: Path(x).suffix.lower() == ".mp4"
     )
-
     mask_format = df["format_name"] == "mov,mp4,m4a,3gp,3g2,mj2"
-    mask_ok = (
-        mask_cv_ok
-        & mask_ca_ok
-        & mask_ac_ok
-        & mask_isavc
-        & mask_mp4
-        & mask_format
-    )
-    df["to_convert"] = 0
-    df.loc[~mask_ok, "to_convert"] = 1
+
+    stream_video_ok = mask_cv_ok
+    audio_stream_ok = mask_ca_ok & mask_ac_ok
+    container_ok = mask_mp4 & mask_format & mask_isavc
+
+    df["type_conversion"] = ""
+
+    mask_1_not_needed = stream_video_ok & audio_stream_ok & container_ok
+    df.loc[mask_1_not_needed, "type_conversion"] = "1_not_needed"
+
+    mask_2_container = (stream_video_ok & audio_stream_ok) & ~container_ok
+    df.loc[mask_2_container, "type_conversion"] = "2_container"
+
+    mask_3_only_audio = stream_video_ok & ~audio_stream_ok
+    df.loc[mask_3_only_audio, "type_conversion"] = "3_only_audio"
+
+    mask_4_only_video = ~stream_video_ok & audio_stream_ok
+    df.loc[mask_4_only_video, "type_conversion"] = "4_only_video"
+
+    mask_5_total_conv = ~stream_video_ok & ~audio_stream_ok
+    df.loc[mask_5_total_conv, "type_conversion"] = "5_total_conv"
     return df
