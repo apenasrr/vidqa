@@ -28,7 +28,7 @@ Ensures:
 * File path length be less than 240 chars
 * File names length be less than 150 chars
 
-Quality assurance made effortless! [Click here]((https://www.youtube.com/watch?v=9cMFngtzpkY)) to watch a tutorial video and see how VIDQA can enhance the quality of your audiovisual content.
+Quality assurance made effortless! `Click here`_ to watch a tutorial video and see how VIDQA can enhance the quality of your audiovisual content.
 
 Usage
 -----
@@ -130,3 +130,4 @@ This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypack
 
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+.. _`Click here`: https://www.youtube.com/watch?v=9cMFngtzpkY
