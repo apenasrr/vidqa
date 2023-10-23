@@ -24,9 +24,11 @@ Features
 
 Ensures:
 
-* File paths less than 250 characters
-* File names be less than 150 chars
-* Videos are in mp4 format and h264/aac codecs
+* Videos are in mp4 format and h264/aac codecs with audio channel up to 2
+* File path length be less than 240 chars
+* File names length be less than 150 chars
+
+Quality assurance made effortless! [Click here]((https://www.youtube.com/watch?v=9cMFngtzpkY)) to watch a tutorial video and see how VIDQA can enhance the quality of your audiovisual content.
 
 Usage
 -----
@@ -71,17 +73,54 @@ maxrate - maximum bitrate peak in a second. Default 2 (MiB) to flow in slow conn
 
     $ vidqa flags --maxrate 3
 
-folder_destination - Default folder where converted temporary reports and videos should be stored
+folder_log - Parent log folder where stores individual log folders for each project. Default = None.
 
 .. code-block:: text
 
-    $ vidqa flags -fd "c://my_temp_folder"
+    $ vidqa flags -fl "c://my_temp_folder"
 
-default_destination - Activates the default folder
+default_log - Activates the default parent log folder. Default = 0.
 
 .. code-block:: text
 
-    $ vidqa flags -dd 1 # 0 to deactivate
+    $ vidqa flags -dl 1 # 0 to deactivate
+
+corrupt_del - Flag to allow delete corrupted videos from the project folder. Default = 1.
+
+.. code-block:: text
+
+    $ vidqa flags -cd 1
+
+corrupt_bkp - Flag to allow do backup corrupted videos to the project log folder. Default = 1.
+
+.. code-block:: text
+
+    $ vidqa flags -cb 1
+
+
+max_path = Maximum length that each file path is allowed to be. Default = 240.
+
+.. code-block:: text
+
+    $ vidqa flags -mp 230
+
+max_name = Maximum length that each file name is allowed to be. Default = 150.
+
+.. code-block:: text
+
+    $ vidqa flags -mn 100
+
+move_done = Flag to allow project to be moved after optimization (1 for allowed, 0 for disallowed). Default = 0.
+
+.. code-block:: text
+
+    $ vidqa flags -md 1
+
+folder_destination = Folder where projects should be moved after optimization. Default = None.
+
+.. code-block:: text
+
+    $ vidqa flags -fd "c://optimized_projects"
 
 
 Credits
